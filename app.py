@@ -5,8 +5,8 @@ import os
 import datetime
 
 # --- PILLAR 1: THE BRAIN ---
-API_KEY = "AIzaSyDw3rg_0MNwEYW0zp1Jr7ZEatnLkxTmUpI" 
-genai.configure(api_key=API_KEY)
+# We pull the key from the hidden Streamlit Secrets vault instead
+genai.configure(api_key=st.secrets["API_KEY"])
 MODEL_NAME = 'gemini-3.1-flash-lite-preview'
 
 # --- UI & CSS (THE OVERRIDE) ---
