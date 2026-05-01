@@ -5,11 +5,16 @@ import os
 import datetime
 
 # --- PILLAR 1: THE BRAIN ---
-# Using the hidden vault for safety
-genai.configure(api_key=st.secrets["API_KEY"])
+# Security: Pulling the key from the hidden Secrets vault
+if "API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["API_KEY"])
+else:
+    st.error("API Key not found in Streamlit Secrets.")
+
 MODEL_NAME = 'gemini-3.1-flash-lite-preview'
 
 # --- UI & CSS (THE OVERRIDE) ---
+# initial_sidebar_state="expanded" ensures it starts open
 st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
@@ -25,12 +30,12 @@ st.markdown("""
         border: 2px solid #4F8BF9;
     }
 
-    /* 2. PERSISTENT SIDEBAR - TOGGLE ALLOWED */
-    /* Removed the display:none rule to let the toggle button show */
+    /* 2. SIDEBAR TOGGLE RECOVERY */
+    /* The rule hiding 'stSidebarCollapseButton' has been removed to restore the toggle */
     
     /* 3. CLEAN UP INTERFACE */
     header {visibility: visible;}
-    .block-container { padding-top: 0rem; }
+    .block-container { padding-top: 1rem; }
     
     /* 4. FIX UPLOAD SECTION APPEARANCE */
     .stFileUploader {
@@ -55,12 +60,14 @@ with st.popover("⚙️"):
 # --- TOP CENTRE LOGO & SIGNATURE ---
 _, center_col, _ = st.columns([1, 2, 1])
 with center_col:
-    try:
+    # Improved logo handling to prevent disappearance
+    if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
-        st.markdown("<p style='text-align: center; font-size: 30px; font-weight: bold;'>Your Jain AI-Question Companion</p>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: right; font-size: 24px; color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
-    except: 
-        st.write("### SamyakAI")
+    else:
+        st.markdown("<h1 style='text-align: center; color: #4F8BF9;'>SamyakAI</h1>", unsafe_allow_html=True)
+        
+    st.markdown("<p style='text-align: center; font-size: 30px; font-weight: bold;'>Your Jain AI-Question Companion</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: right; font-size: 24px; color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
 
 st.write("---")
 
@@ -111,6 +118,7 @@ if user_input or audio_data:
             answer = response.text
             st.markdown(answer)
             
+            # Voice Mapping
             v_map = {
                 "Male 1": {"slow": False, "tld": 'co.uk'},
                 "Male 2": {"slow": True, "tld": 'com.au'},
