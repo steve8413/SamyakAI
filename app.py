@@ -5,7 +5,7 @@ import os
 import datetime
 
 # --- PILLAR 1: THE BRAIN ---
-# Uses the hidden vault for safety - no more exposed keys!
+# Using the hidden vault for safety
 genai.configure(api_key=st.secrets["API_KEY"])
 MODEL_NAME = 'gemini-3.1-flash-lite-preview'
 
@@ -14,7 +14,7 @@ st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", i
 
 st.markdown("""
     <style>
-    /* 1. SETTINGS ICON STYLE */
+    /* 1. FORCE SETTINGS ICON VISIBILITY */
     div[data-testid="stPopover"] {
         position: fixed;
         top: 15px;
@@ -25,14 +25,14 @@ st.markdown("""
         border: 2px solid #4F8BF9;
     }
 
-    /* 2. SIDEBAR TOGGLE IS NOW VISIBLE */
-    /* Code that was hiding the toggle has been removed */
+    /* 2. PERSISTENT SIDEBAR - TOGGLE ALLOWED */
+    /* Removed the display:none rule to let the toggle button show */
     
     /* 3. CLEAN UP INTERFACE */
     header {visibility: visible;}
     .block-container { padding-top: 0rem; }
     
-    /* 4. FIX UPLOAD SECTION */
+    /* 4. FIX UPLOAD SECTION APPEARANCE */
     .stFileUploader {
         margin-bottom: -20px;
     }
@@ -52,7 +52,7 @@ with st.popover("⚙️"):
     st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
     st.info("📁 Vault Capacity: 10GB Active")
 
-# --- TOP CENTRE LOGO ---
+# --- TOP CENTRE LOGO & SIGNATURE ---
 _, center_col, _ = st.columns([1, 2, 1])
 with center_col:
     try:
@@ -78,11 +78,14 @@ with st.sidebar:
 
 # --- INPUT DOCK ---
 c_file, c_txt, c_mic = st.columns([1.5, 6.5, 2])
+
 with c_file:
     st.file_uploader("📎", label_visibility="collapsed")
     st.caption("Vault: 10GB Max")
+
 with c_txt:
     user_input = st.chat_input("Ask a question...")
+
 with c_mic:
     mic_key = f"mic_{datetime.datetime.now().strftime('%M%S')}"
     audio_data = st.audio_input("🎤", label_visibility="collapsed", key=mic_key)
@@ -90,6 +93,7 @@ with c_mic:
 # --- PROCESSING ---
 if user_input or audio_data:
     query = user_input if user_input else "Voice prompt"
+    
     with st.chat_message("assistant"):
         prompt = f"""
         DATE: {live_date}
@@ -100,13 +104,13 @@ if user_input or audio_data:
         3. Only Jainism content. Else: "error not found data and this software is made only for questions related to jainism".
         4. Speed: < 3 seconds.
         """
+        
         try:
             model = genai.GenerativeModel(MODEL_NAME)
             response = model.generate_content(prompt)
             answer = response.text
             st.markdown(answer)
             
-            # Voice Setup
             v_map = {
                 "Male 1": {"slow": False, "tld": 'co.uk'},
                 "Male 2": {"slow": True, "tld": 'com.au'},
@@ -124,5 +128,6 @@ if user_input or audio_data:
             if "Tithi:" in answer:
                 st.session_state.live_tithi = answer.split("Tithi:")[1].split("\n")[0].strip()
                 st.rerun()
+                
         except Exception as e:
             st.error("Engine reset. Please try again.")
