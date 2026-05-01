@@ -5,7 +5,6 @@ import os
 import datetime
 
 # --- PILLAR 1: THE BRAIN ---
-# Security: Pulling the key from the hidden Secrets vault
 if "API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["API_KEY"])
 else:
@@ -14,24 +13,36 @@ else:
 MODEL_NAME = 'gemini-3.1-flash-lite-preview'
 
 # --- UI & CSS (THE OVERRIDE) ---
-# initial_sidebar_state="expanded" ensures it starts open
 st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
     <style>
-    /* 1. FORCE SETTINGS ICON VISIBILITY */
+    /* 1. SETTINGS ICON IN A SMALL CIRCLE */
     div[data-testid="stPopover"] {
         position: fixed;
-        top: 15px;
-        right: 15px;
+        top: 20px;
+        right: 20px;
         z-index: 999999;
-        background-color: #ffffff;
-        border-radius: 50%;
-        border: 2px solid #4F8BF9;
+    }
+    
+    div[data-testid="stPopover"] > button {
+        background-color: #ffffff !important;
+        border: 2px solid #4F8BF9 !important;
+        border-radius: 50% !important; /* Makes it a perfect circle */
+        width: 40px !important; /* Small size */
+        height: 40px !important;
+        padding: 0px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
     }
 
-    /* 2. SIDEBAR TOGGLE RECOVERY */
-    /* The rule hiding 'stSidebarCollapseButton' has been removed to restore the toggle */
+    /* 2. SIDEBAR TOGGLE VISIBILITY */
+    button[data-testid="stSidebarCollapseButton"] {
+        visibility: visible !important;
+        display: block !important;
+    }
     
     /* 3. CLEAN UP INTERFACE */
     header {visibility: visible;}
@@ -60,7 +71,6 @@ with st.popover("⚙️"):
 # --- TOP CENTRE LOGO & SIGNATURE ---
 _, center_col, _ = st.columns([1, 2, 1])
 with center_col:
-    # Improved logo handling to prevent disappearance
     if os.path.exists("logo.png"):
         st.image("logo.png", use_container_width=True)
     else:
@@ -118,7 +128,6 @@ if user_input or audio_data:
             answer = response.text
             st.markdown(answer)
             
-            # Voice Mapping
             v_map = {
                 "Male 1": {"slow": False, "tld": 'co.uk'},
                 "Male 2": {"slow": True, "tld": 'com.au'},
