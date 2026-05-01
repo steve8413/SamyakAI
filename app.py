@@ -17,25 +17,32 @@ st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", i
 
 st.markdown("""
     <style>
-    /* 1. SETTINGS ICON IN A SMALL CIRCLE */
+    /* 1. SETTINGS ICON - SMALL CIRCLE IN TOP RIGHT */
     div[data-testid="stPopover"] {
         position: fixed;
-        top: 20px;
-        right: 20px;
+        top: 10px; /* Moves it slightly up to avoid header buttons */
+        right: 80px; /* Moves it left to avoid the Streamlit 'Deploy' menu */
         z-index: 999999;
     }
     
     div[data-testid="stPopover"] > button {
         background-color: #ffffff !important;
         border: 2px solid #4F8BF9 !important;
-        border-radius: 50% !important; /* Makes it a perfect circle */
-        width: 40px !important; /* Small size */
-        height: 40px !important;
+        border-radius: 50% !important; 
+        width: 35px !important; 
+        height: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
         padding: 0px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        box-shadow: 0px 2px 10px rgba(0,0,0,0.1);
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    div[data-testid="stPopover"] > button div {
+        padding: 0px !important;
+        margin: 0px !important;
     }
 
     /* 2. SIDEBAR TOGGLE VISIBILITY */
