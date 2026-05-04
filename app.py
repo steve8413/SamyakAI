@@ -17,7 +17,6 @@ def fetch_svetambara_tithi_from_url(url: str) -> str:
 
     patterns = [
         r"\b([A-Za-z]+)\s+(Sud|Vad|sud|vad)\s+(\d{1,2})\b",
-        r"\b([A-Za-z]+)\s+(Śukla|Krishna|शुक्ल|कृष्ण)\s+(\d{1,2})\b",
         r"\bTithi[:\s]+([A-Za-z]+)\s+(Sud|Vad)\s+(\d{1,2})\b",
     ]
     for pat in patterns:
@@ -140,7 +139,7 @@ st.markdown("""
 
 # --- INITIALIZE DATA ---
 if 'app_lang' not in st.session_state: st.session_state.app_lang = "English,Hindi,Gujrati,Marwadi"
-if 'voice_profile' not in st.session_state: st.session_state.voice_profile = "Male 1,Male 2,Female 1,female 2"
+if 'voice_profile' not in st.session_state: st.session_state.voice_profile = "Male 1,Male 2,Female 1,female 2"lang=st.session_state.app_lang
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 if 'live_tithi' not in st.session_state: st.session_state.live_tithi = ""
 if 'last_tithi_date' not in st.session_state: st.session_state.last_tithi_date = None
