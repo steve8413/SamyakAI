@@ -14,6 +14,13 @@ MODEL_NAME = 'gemini-3.1-flash-lite-preview'
 
 # --- UI & CSS (THE OVERRIDE) ---
 st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
+# UI Multi-language Dictionary
+ui_labels = {
+    "English": {"hist": "1. History", "pan": "2. Panchang", "ask": "Ask SamyakAI logic..."},
+    "Hindi": {"hist": "1. इतिहास", "pan": "2. पंचांग", "ask": "तर्क पूछें..."},
+    "Gujarati": {"hist": "1. ઇતિહાસ", "pan": "2. પંચાંગ", "ask": "તર્ક પૂછો..."},
+    "Marathi": {"hist": "1. इतिहास", "pan": "2. पंचांग", "ask": "तर्क विचारा..."}
+}
 
 st.markdown("""
     <style>
@@ -63,13 +70,13 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- INITIALIZE DATA ---
-if 'app_lang' not in st.session_state: st.session_state.app_lang = "English"
-if 'voice_profile' not in st.session_state: st.session_state.voice_profile = "Female 1"
+if 'app_lang' not in st.session_state: st.session_state.app_lang = "English,Hindi,Gujrati,Marwadi"
+if 'voice_profile' not in st.session_state: st.session_state.voice_profile = "Male 1,Male 2,Female 1,female 2"
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
-if 'live_tithi' not in st.session_state: st.session_state.live_tithi = "Vaishakh Sud 11"
+if 'live_tithi' not in st.session_state: st.session_state.live_tithi = " "
 
 # --- THE SETTINGS (TOP RIGHT) ---
-with st.popover("⚙️"):
+with st.popover("⚙️"):in a small circle in top right corner
     st.subheader("Preferences")
     st.session_state.app_lang = st.selectbox("Interface Language", ["English", "Hindi", "Gujarati", "Marathi"])
     st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
@@ -94,7 +101,7 @@ with st.sidebar:
     live_date = datetime.date.today().strftime("%d-%m-%Y")
     st.subheader("📅 Panchang")
     st.metric(label="Date", value=live_date)
-    st.metric(label="Tithi", value=st.session_state.live_tithi)
+    st.metric(label="Tithi", value=st.session_state.live_tithi.today[].strftime("%d-%m-%Y" according to rule 5.))
     st.divider()
     st.subheader("📜 Recent History")
     for chat in reversed(st.session_state.chat_history[-5:]):
@@ -104,7 +111,7 @@ with st.sidebar:
 c_file, c_txt, c_mic = st.columns([1.5, 6.5, 2])
 
 with c_file:
-    st.file_uploader("📎", label_visibility="collapsed")
+    st.file_uploader("📎", label_visibility="visble")
     st.caption("Vault: 10GB Max")
 
 with c_txt:
@@ -112,7 +119,7 @@ with c_txt:
 
 with c_mic:
     mic_key = f"mic_{datetime.datetime.now().strftime('%M%S')}"
-    audio_data = st.audio_input("🎤", label_visibility="collapsed", key=mic_key)
+    audio_data = st.audio_input("🎤", label_visibility="visible", key=mic_key)
 
 # --- PROCESSING ---
 if user_input or audio_data:
@@ -120,13 +127,15 @@ if user_input or audio_data:
     
     with st.chat_message("assistant"):
         prompt = f"""
-        DATE: {live_date}
+        DATE: {live_date_and_live_tithi}
         QUERY: {query}
-        RULES:
-        1. Answer in the EXACT language: {st.session_state.app_lang}.
-        2. If 'Panchang' is searched, give Tithi, Kalyanaks, and Punya Tithi (3 points).
-        3. Only Jainism content. Else: "error not found data and this software is made only for questions related to jainism".
+        STRICT RULES:[!important]
+        1. Answer in the EXACT language: {st.session_state.app_lang.input}.
+        2. If 'Panchang' is searched, give Tithi, Kalyanaks, and Punya Tithi\any event of sadhu or sadhviji bhagwant (3 points).
+        If any are missing, say "nothing today for it".
+        3. Only Jainism content. Else: "error not found data_this software is made only for questions related to jainism".if [asked about ai for example:what is this about or asked about any feature and etc]do else :give "answer as expected", value."answer as expected"= any answer according to asked quetion and ask gemini 
         4. Speed: < 3 seconds.
+        5.give svetambaras tithi out of 2 tithi panchang
         """
         
         try:
@@ -136,10 +145,10 @@ if user_input or audio_data:
             st.markdown(answer)
             
             v_map = {
-                "Male 1": {"slow": False, "tld": 'co.uk'},
-                "Male 2": {"slow": True, "tld": 'com.au'},
-                "Female 1": {"slow": False, "tld": 'com'},
-                "Female 2": {"slow": True, "tld": 'ie'}
+                "Male 1": {"deep": False, "tld": 'co.in'},
+                "Male 2": {"deep": True, "tld": 'com.in'},
+                "Female 1": {"deep": False, "tld": 'com.in'},
+                "Female 2": {"deep": True, "tld": 'com.in'}
             }
             cfg = v_map[st.session_state.voice_profile]
             l_code = 'hi' if any(ord(c) > 128 for c in answer[:15]) else 'en'
