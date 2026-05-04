@@ -150,7 +150,7 @@ st.markdown("""
 
 # --- INITIALIZE DATA ---
 if 'voice_profile' not in st.session_state:
-    st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
+    st.session_state.voice_profile = "Male 1"  # default
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 if 'live_tithi' not in st.session_state: st.session_state.live_tithi = ""
 if 'last_tithi_date' not in st.session_state: st.session_state.last_tithi_date = None
