@@ -138,7 +138,9 @@ st.markdown("""
 
 # --- INITIALIZE DATA ---
 if 'app_lang' not in st.session_state: st.session_state.app_lang = "English,Hindi,Gujrati,Marwadi"
-if 'voice_profile' not in st.session_state: st.session_state.voice_profile = "Male 1,Male 2,Female 1,female 2"; lang = "st.session_state.app_lang"
+if 'voice_profile' not in st.session_state: 
+    st.session_state.voice_profile = "Male 1,Male 2,Female 1,female 2"
+    lang = st.session_state.app_lang  # Removed quotes so it uses the actual variable
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 if 'live_tithi' not in st.session_state: st.session_state.live_tithi = ""
 if 'last_tithi_date' not in st.session_state: st.session_state.last_tithi_date = None
