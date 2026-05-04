@@ -9,20 +9,26 @@ import re
 # --- JAIN CALENDAR HELPER ---
 def fetch_svetambara_tithi_from_url(url: str) -> str:
     try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        with urllib.request.urlopen(url, timeout=15) as resp:
             html = resp.read().decode('utf-8', errors='ignore')
     except (urllib.error.URLError, Exception):
         return ""
 
     patterns = [
-        r"\b([A-Za-z]+)\s+(Sud|Vad|sud|vad)\s+(\d{1,2})\b",
-        r"\bTithi[:\s]+([A-Za-z]+)\s+(Sud|Vad)\s+(\d{1,2})\b",
+        r"\b([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad|sud|vad)\s+(\d{1,2})\b",
+        r"\bTithi[:\s]+([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad)\s+(\d{1,2})\b",
+        r"([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad)\s+(\d{1,2})",
+        r"Svetambara\s+Tithi\s*:\s*([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad)\s+(\d{1,2})",
     ]
     for pat in patterns:
         match = re.search(pat, html, re.IGNORECASE)
         if match:
             month = match.group(1).capitalize()
             phase = match.group(2).capitalize()
+            if phase == 'Shukla':
+                phase = 'Sud'
+            elif phase == 'Krishna':
+                phase = 'Vad'
             number = match.group(3)
             return f"{month} {phase} {number}"
 
@@ -39,6 +45,10 @@ def get_svetambara_tithi() -> str:
         "https://www.jainpanchang.com/panchang/",
         "https://www.jainpanchang.com/",
         "https://jainpanchang.com/",
+        "https://www.drikpanchang.com/panchang/jain-panchang.html",
+        "https://www.drikpanchang.com/panchang/today-panchang.html",
+        "https://www.jainpanchang.in/panchang",
+        "https://www.panchangam.org/jain-panchang",
     ])
 
     for url in candidate_urls:
@@ -46,7 +56,7 @@ def get_svetambara_tithi() -> str:
         if tithi:
             return tithi
 
-    return f"Tithi not found for {today.strftime('%d-%m-%Y')} (configure JAIN_TITHI_URL in Streamlit secrets)"
+    return ""
 
 
 def is_jain_or_ai_query(query: str) -> bool:
@@ -85,22 +95,10 @@ ui_labels = {
 
 st.markdown("""
     <style>
-    /* 1. SETTINGS ICON - FLOATING CIRCLE IN TOP RIGHT CORNER */
-    div[data-testid="stPopover"] {
-        position: fixed !important;
-        top: 20px !important;
-        right: 20px !important;
-        z-index: 999999 !important;
-    }
-    
+/* 1. SETTINGS ICON - NORMAL BUTTON */
     div[data-testid="stPopover"] > button {
         background-color: #4F8BF9 !important;
         border: none !important;
-        border-radius: 50% !important; 
-        width: 50px !important; 
-        height: 50px !important;
-        min-width: 50px !important;
-        max-width: 50px !important;
         padding: 0px !important;
         display: flex !important;
         align-items: center !important;
@@ -123,6 +121,20 @@ st.markdown("""
     button[data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         display: block !important;
+    }
+    
+    /* MOBILE RESPONSIVENESS */
+    @media (max-width: 768px) {
+        .stSidebar {
+            display: block !important;
+            width: 250px !important;
+        }
+        button[data-testid="stSidebarCollapseButton"] {
+            display: none !important;
+        }
+        .stColumns {
+            flex-direction: column !important;
+        }
     }
     
     /* 3. CLEAN UP INTERFACE */
@@ -176,7 +188,7 @@ with st.sidebar:
     live_date = datetime.date.today().strftime("%d-%m-%Y")  # English date format
     st.subheader("📅 Panchang")
     st.metric(label="Date (English)", value=live_date)
-    st.metric(label="Svetambara Tithi", value=st.session_state.live_tithi)
+    st.metric(label="Shvetambara Tithi", value=st.session_state.live_tithi or "Not available")
     st.divider()
     st.subheader("📜 Recent History")
     for chat in reversed(st.session_state.chat_history[-5:]):
@@ -203,14 +215,16 @@ if user_input or audio_data:
     with st.chat_message("assistant"):
         prompt = f"""
         DATE: {live_date} (English format)
-        CURRENT SVETAMBARA TITHI: {st.session_state.live_tithi}  # strict month Sud/Vad day format
+        CURRENT SHVETAMBARA TITHI: {st.session_state.live_tithi or 'Not available'}  # strict month Sud/Vad day format
         QUERY: {query}
         STRICT RULES:[!important]
         1. Answer in the EXACT language: {st.session_state.app_lang}.
-        2. If 'News' is searched, pointUse exact month Sud/Vad day numbering like Shukravar,Vaishakh Sud 11 ,2082 or Shukravar,Vaishakh Vad 11, 2082. + 2. kalyanak of any god should be mentioned if it falls on the same day. Do not use any other format for tithi. If tithi is not found, say "Tithi not found " + 3. punya tithi /special day about any sadhu /sadhviji bhagwant should also be mentioned if it falls on the same day. ask to gemini, If tithi is not found, say "Tithi not found".
-        3. Only Jainism or AI content is valid. If the question is not about Jainism or AI, answer in red text and say: "error not found data_this software is made only for questions related to Jainism or AI".
-        4. Speed: < 3 seconds.
-        5. Give Svetambara tithi out of 2 tithi panchang.
+        2. Use exact month Sud/Vad day numbering for tithi, like Vaishakh Sud 11.
+        3. Mention kalyanak of any god if it falls on the same day.
+        4. Mention punya tithi / special day about any sadhu/sadhviji/bhagwant if it falls on the same day.
+        5. Only Jainism or AI content is valid. If the question is not about Jainism or AI, answer in red text: "This software is made only for questions related to Jainism or AI".
+        6. Speed: < 3 seconds.
+        7. Provide Shvetambara tithi information when relevant.
         """
         
         try:
