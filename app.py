@@ -6,7 +6,6 @@ import datetime
 import urllib.request
 import urllib.error
 import re
-
 # --- JAIN CALENDAR HELPER ---
 def fetch_svetambara_tithi_from_url(url: str) -> str:
     try:
@@ -154,7 +153,7 @@ if st.session_state.last_tithi_date != today:
 with st.popover("⚙️"):
     st.subheader("Preferences")
     st.session_state.app_lang = st.selectbox("Interface Language", ["English", "Hindi", "Gujarati", "Marathi"])
-    st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
+    st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"]),lang='st.session_state.app_lang = "English,Hindi,Gujrati,Marwadi"'
     st.info("📁 Vault Capacity: 10GB Active")
 
 # --- TOP CENTRE LOGO & SIGNATURE ---
