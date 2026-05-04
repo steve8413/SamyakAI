@@ -137,9 +137,9 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- INITIALIZE DATA ---
-if 'app_lang' not in st.session_state: st.session_state.app_lang = "English,Hindi,Gujrati,Marwadi"
-      st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
-      lang='st.session_state.app_lang = "English,Hindi,Gujrati,Marwadi"'
+if 'voice_profile' not in st.session_state:
+    st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
+# ^ This gap must be consistent (4 spaces)
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 if 'live_tithi' not in st.session_state: st.session_state.live_tithi = ""
 if 'last_tithi_date' not in st.session_state: st.session_state.last_tithi_date = None
