@@ -45,8 +45,6 @@ def get_svetambara_tithi() -> str:
         "https://www.jainpanchang.com/panchang/",
         "https://www.jainpanchang.com/",
         "https://jainpanchang.com/",
-        "https://www.drikpanchang.com/panchang/jain-panchang.html",
-        "https://www.drikpanchang.com/panchang/today-panchang.html",
         "https://www.jainpanchang.in/panchang",
         "https://www.panchangam.org/jain-panchang",
     ])
