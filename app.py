@@ -254,3 +254,13 @@ if user_input or audio_data:
                 
         except Exception as e:
             st.error("Engine reset. Please try again.")
+            # Audio Input Section
+audio_value = st.audio_input("🎤 Record a voice message")
+
+if audio_value:
+    st.audio(audio_value)
+else:
+    st.info(
+        "If microphone is blocked, please open this app at its **HTTPS link**. "
+        "Microphone does not work over plain HTTP on most browsers."
+    )
