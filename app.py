@@ -23,7 +23,7 @@ st.set_page_config(
 )
 
 PANCHANG_VAULT_FILE = "panchang_vault.json"
-MAX_CREDITS = 50
+MAX_CREDITS = 500
 current_time = time.time()
 
 if 'user_credits' not in st.session_state: 
@@ -95,7 +95,7 @@ def get_tithi() -> str:
 def is_jain_or_ai_query(query: str) -> bool:
     lower = query.lower()
     keywords = [
-        "jain", "jainism", "panchang", "tithi", "stavan", "samosaran", "samavasarana", "tirthankar",
+        "jain", "jainism", "panchang", "tithi", "stavan", "samosaran", "samavasarana", "tirthankar", "mahavir",
         "ai", "artificial intelligence", "gemini", "image", "generate", "draw", "edit",
         "नमस्ते", "જૈન", "જૈનિઝમ"
     ]
@@ -285,110 +285,20 @@ user_prompt = st.chat_input(placeholder)
 # ------------------------------------------------------------------------------
 # 8. EXECUTION ENGINE
 # ------------------------------------------------------------------------------
-active_prompt = user_prompt
-if audio_input_file is not None and not user_prompt:
-    active_prompt = "User submitted an audio voice query."
-
-if active_prompt:
-    cost = 5 if force_image_mode else 1
-    
-    if st.session_state.user_credits < cost:
-        st.error("24-Hour Credit Limit Reached! Quota resets tomorrow.")
-    else:
-        st.session_state.user_credits -= cost
-        msg_id = len(st.session_state.chat_history)
-        
-        # BRANCH A: CANVAS IMAGE GENERATION
-        if force_image_mode:
-            complex_prompt = active_prompt
-            if selected_style != "Default":
-                complex_prompt += f", in {selected_style} style"
-            if selected_lighting != "Natural":
-                complex_prompt += f", {selected_lighting} lighting"
-            if selected_detail != "Standard":
-                complex_prompt += f", {selected_detail}"
-
-            st.session_state.chat_history.append({
-                "id": msg_id,
-                "role": "user",
-                "title": active_prompt,
-                "content": f"🎨 **Canvas Image Prompt:** {complex_prompt} | **Ratio:** {selected_ratio}"
-            })
-            
-            with st.spinner(f"Rendering high-definition image ({selected_ratio})..."):
-                try:
-                    result = client.models.generate_images(
-                        model="imagen-3.0-generate-002",
-                        prompt=complex_prompt,
-                        config=types.GenerateImagesConfig(
-                            number_of_images=1,
-                            aspect_ratio=selected_ratio,
-                        )
-                    )
-                    
-                    for gen_img in result.generated_images:
-                        img_bytes = gen_img.image.image_bytes
-                        pil_img = Image.open(io.BytesIO(img_bytes))
-                        
-                        st.session_state.chat_history.append({
-                            "id": msg_id + 1,
-                            "role": "assistant",
-                            "title": active_prompt,
-                            "content": f"Generated image for: *\"{complex_prompt}\"*",
-                            "generated_img": pil_img
-                        })
-                        st.rerun()
-
-                except Exception as e:
-                    st.error(f"Imagen 3 Generation Error: {str(e)}")
-
-        # BRANCH B: TEXT, AUDIO & VISION ANALYSIS
-        else:
-            uploaded_pil = Image.open(uploaded_file) if uploaded_file and uploaded_file.type.startswith("image/") else None
-            
-            if uploaded_file and uploaded_file.name.endswith(".json"):
-                with open(PANCHANG_VAULT_FILE, "wb") as pf:
-                    pf.write(uploaded_file.getbuffer())
-                st.success("Integrated new Panchang JSON dataset into Vault!")
-
-            st.session_state.chat_history.append({
-                "id": msg_id,
-                "role": "user",
-                "title": active_prompt,
-                "content": active_prompt,
-                "uploaded_img": uploaded_pil
-            })
-            
-            with st.spinner("Processing request..."):
-                try:
-                    is_valid = is_jain_or_ai_query(active_prompt)
-                    
-                    if not is_valid:
-                        answer_text = "This software is designed for questions related to Jainism or AI."
-                        formatted_answer = f"<div style='color:red'>{answer_text}</div>"
-                    else:
-                        system_instructions = f"""
-                        DATE: {live_date}
-                        # ------------------------------------------------------------------------------
-# 8. EXECUTION ENGINE (STABILIZED AUDIO & DEDUPLICATION)
-# ------------------------------------------------------------------------------
 if 'processed_audio_id' not in st.session_state:
     st.session_state.processed_audio_id = None
 
 active_prompt = user_prompt
-is_audio_submission = False
 
 if audio_input_file is not None and not user_prompt:
-    # Create a unique identifier for this audio file buffer to prevent re-processing loops
     audio_bytes_data = audio_input_file.getvalue()
     audio_id = hash(audio_bytes_data)
     
     if st.session_state.processed_audio_id != audio_id:
         st.session_state.processed_audio_id = audio_id
         active_prompt = "User submitted an audio voice query."
-        is_audio_submission = True
     else:
-            active_prompt = None
+        active_prompt = None
 
 if active_prompt:
     cost = 5 if force_image_mode else 1
@@ -468,17 +378,18 @@ if active_prompt:
                         answer_text = "This software is designed for questions related to Jainism or AI."
                         formatted_answer = f"<div style='color:red'>{answer_text}</div>"
                     else:
-                        system_instructions = f"""
-                        DATE: {live_date}
-                        CURRENT TITHI: {get_tithi()}
-                        USER QUERY: {active_prompt}
-                        APP UI LANGUAGE: {st.session_state.app_lang}
-                        STRICT RULES:
-                        1. Respond in plain text or standard markdown. Do not wrap normal words in LaTeX/math math formatting.
-                        2. Respond in the exact same language/script that the user used in their query. If ambiguous, use {st.session_state.app_lang}.
-                        3. Maintain tithi information context where applicable.
-                        ""
-                            if uploaded_pil:
+                        system_instructions = (
+                            f"DATE: {live_date}\n"
+                            f"CURRENT TITHI: {get_tithi()}\n"
+                            f"USER QUERY: {active_prompt}\n"
+                            f"APP UI LANGUAGE: {st.session_state.app_lang}\n"
+                            "STRICT RULES:\n"
+                            "1. Respond in plain text or standard markdown. Do not wrap normal words in LaTeX formatting.\n"
+                            f"2. Respond in the exact same language/script that the user used. If ambiguous, use {st.session_state.app_lang}.\n"
+                            "3. Maintain tithi information context where applicable."
+                        )
+                        
+                        if uploaded_pil:
                             response = client.models.generate_content(
                                 model="gemini-2.5-flash",
                                 contents=[uploaded_pil, system_instructions]
@@ -510,4 +421,3 @@ if active_prompt:
 
                 except Exception as e:
                     st.error(f"Processing Error: {str(e)}")
-        
