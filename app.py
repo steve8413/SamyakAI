@@ -378,14 +378,14 @@ if user_prompt:
                     3. Only Jainism or AI content is valid. If unrelated, answer in red text: "This software is designed for questions related to Jainism or AI."
                     """
                     
-                    if uploaded_pil:
+                                        if uploaded_pil:
                         response = client.models.generate_content(
-                            model="gemini-2.5-flash",
+                            model="gemini-3.6-flash",
                             contents=[uploaded_pil, system_instructions]
                         )
                     else:
                         response = client.models.generate_content(
-                            model="gemini-2.5-flash",
+                            model="gemini-3.6-flash",
                             contents=system_instructions
                         )
                     
