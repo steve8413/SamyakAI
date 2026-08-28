@@ -232,7 +232,14 @@ with st.sidebar:
 # 6. APP HEADER (LOGO PLACED ABOVE COMPANION TITLE)
 # ------------------------------------------------------------------------------
 if os.path.exists("logo.png"):
-    st.image("logo.png", width=90)
+    import base64
+    with open("logo.png", "rb") as img_file:
+        encoded_logo = base64.b64encode(img_file.read()).decode()
+    st.markdown(f"""
+        <div style="margin-bottom: 10px;">
+            <img src="data:image/png;base64,{encoded_logo}" style="width: 220px; height: auto;" />
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown(f"<h1>{labels['title']}</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color: #888; margin-top: -15px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
@@ -256,6 +263,7 @@ for item in st.session_state.chat_history:
             )
         if item.get("audio_bytes") and item["role"] == "assistant":
             st.audio(item["audio_bytes"], format="audio/mp3")
+            /
 
 # ------------------------------------------------------------------------------
 # 7. CANVAS BAR & GAMMA-STYLE POPOVER SETTINGS
