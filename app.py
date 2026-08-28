@@ -285,8 +285,12 @@ with c2:
 with c3:
     uploaded_file = st.file_uploader(labels["upload"], type=["png", "jpg", "jpeg", "json"], disabled=force_image_mode)
 
+# ADD DIRECT MICROPHONE VOICE RECORDING WIDGET HERE:
+audio_file = st.audio_input("🎙️ Record Voice Query")
+
 placeholder = "Enter prompt to generate Canvas Image..." if force_image_mode else labels["ask"]
 user_prompt = st.chat_input(placeholder)
+
 
 # ------------------------------------------------------------------------------
 # 8. EXECUTION ENGINE
