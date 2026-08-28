@@ -263,7 +263,6 @@ for item in st.session_state.chat_history:
             )
         if item.get("audio_bytes") and item["role"] == "assistant":
             st.audio(item["audio_bytes"], format="audio/mp3")
-            /
 
 # ------------------------------------------------------------------------------
 # 7. CANVAS BAR & GAMMA-STYLE POPOVER SETTINGS
