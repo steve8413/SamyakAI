@@ -1,4 +1,4 @@
 streamlit
-google-generativeai
-gTTS
-Pillow
+google-genai
+pillow
+gtts
