@@ -85,9 +85,19 @@ def is_jain_or_ai_query(query: str) -> bool:
     ]
     return any(word in lower for word in keywords)
 
-def text_to_speech_audio(text: str, lang_code: str) -> bytes:
-    clean_text = re.sub(r'<[^>]*>', '', text)  # Strip HTML tags for cleaner speech
-    tts = gTTS(text=clean_text, lang=lang_code, slow=False)
+def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes:
+    clean_text = re.sub(r'<[^>]*>', '', text)
+    
+    # Mapping: Male 1 & Female 1 = Indian Accent (co.in), Male 2 & Female 2 = US Accent (com)
+    tld_map = {
+        "Male 1 (Indian Accent)": "co.in",
+        "Female 1 (Indian Accent)": "co.in",
+        "Male 2 (US Accent)": "com",
+        "Female 2 (US Accent)": "com"
+    }
+    tld = tld_map.get(voice_profile, "co.in")
+    
+    tts = gTTS(text=clean_text, lang=lang_code, tld=tld, slow=False)
     fp = io.BytesIO()
     tts.write_to_fp(fp)
     fp.seek(0)
@@ -116,7 +126,7 @@ ui_labels = {
     "English": {"hist": "Recent History", "pan": "Panchang Info", "ask": "Ask SamyakAI logic...", "upload": "Upload File / Image", "lang_code": "en"},
     "Hindi": {"hist": "इतिहास", "pan": "पंचांग जानकारी", "ask": "तर्क पूछें...", "upload": "फाइल / फोटो अपलोड करें", "lang_code": "hi"},
     "Gujarati": {"hist": "ઇતિહાસ", "pan": "પંચાંગ માહિતી", "ask": "તर्क પૂછો...", "upload": "ફાઇલ / ફોટો અપલોડ કરો", "lang_code": "gu"},
-    "Marathi": {"hist": "इतिहास", "pan": "પંચાંગ माहिती", "ask": "तर्क विचारा...", "upload": "फाइल / फोटो टाका", "lang_code": "mr"}
+    "Marathi": {"hist": "इतिहास", "pan": "पंचांग माहिती", "ask": "तर्क विचारा...", "upload": "फाइल / फोटो टाका", "lang_code": "mr"}
 }
 labels = ui_labels.get(st.session_state.app_lang, ui_labels["English"])
 
@@ -124,20 +134,28 @@ labels = ui_labels.get(st.session_state.app_lang, ui_labels["English"])
 # 5. SIDEBAR NAVIGATION & SETTINGS
 # ------------------------------------------------------------------------------
 with st.sidebar:
-    # Try displaying logo image in sidebar if available
     if os.path.exists("logo.png"):
-        st.image("logo.png", width=80)
+        st.image("logo.png", width=120)
     
     st.title("Samyak Navigation")
     
-    st.subheader("⚙️ Settings & Audio")
+    st.subheader("⚙️ Settings & Voice")
     st.session_state.app_lang = st.selectbox(
         "🌐 Language", 
         ["English", "Hindi", "Gujarati", "Marathi"],
         index=["English", "Hindi", "Gujarati", "Marathi"].index(st.session_state.app_lang)
     )
     
-    enable_voice_output = st.checkbox("🔊 Enable Voice Readout (TTS)", value=True)
+    enable_voice_output = st.checkbox("🔊 Enable Voice Readout", value=True)
+    selected_voice_profile = st.selectbox(
+        "🎙️ Select Voice Profile",
+        [
+            "Male 1 (Indian Accent)", 
+            "Female 1 (Indian Accent)", 
+            "Male 2 (US Accent)", 
+            "Female 2 (US Accent)"
+        ]
+    )
     
     st.divider()
     
@@ -148,13 +166,6 @@ with st.sidebar:
     
     st.divider()
     
-    st.markdown(f"""
-        <div style="background: #1e1e2f; border: 1px solid #4a4a6a; border-radius: 12px; padding: 12px; margin-bottom: 15px;">
-            <span style="font-weight: 700; color: #e0e0e0;">GEMINI CREDITS: </span>
-            <span style="font-size: 18px; font-weight: bold; color: #00d2ff;">{st.session_state.user_credits} / {MAX_CREDITS}</span>
-        </div>
-    """, unsafe_allow_html=True)
-    
     st.subheader(f"📜 {labels['hist']}")
     if st.session_state.chat_history:
         for chat in reversed(st.session_state.chat_history[-5:]):
@@ -163,10 +174,21 @@ with st.sidebar:
         st.text("No history yet.")
 
 # ------------------------------------------------------------------------------
-# 6. APP HEADER
+# 6. APP HEADER & ALWAYS-VISIBLE CREDITS
 # ------------------------------------------------------------------------------
-st.markdown("<h1 style='text-align: center;'>Your Jain AI-Question Companion</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: right; color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
+col_h1, col_h2 = st.columns([3, 1])
+with col_h1:
+    st.markdown("<h1>Your Jain AI-Question Companion</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
+
+with col_h2:
+    st.markdown(f"""
+        <div style="background: #1e1e2f; border: 1px solid #00d2ff; border-radius: 10px; padding: 10px; text-align: center; margin-top: 10px;">
+            <span style="font-size: 12px; font-weight: 700; color: #e0e0e0;">GEMINI CREDITS</span><br>
+            <span style="font-size: 20px; font-weight: bold; color: #00d2ff;">{st.session_state.user_credits} / {MAX_CREDITS}</span>
+        </div>
+    """, unsafe_allow_html=True)
+
 st.divider()
 
 for item in st.session_state.chat_history:
@@ -314,7 +336,7 @@ if user_prompt:
                     audio_data = None
                     if enable_voice_output:
                         try:
-                            audio_data = text_to_speech_audio(answer_text, labels["lang_code"])
+                            audio_data = text_to_speech_audio(answer_text, labels["lang_code"], selected_voice_profile)
                         except Exception:
                             pass
                     
