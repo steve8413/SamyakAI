@@ -13,7 +13,7 @@ from google import genai
 from google.genai import types
 
 # ------------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & TOP-LEFT CREDITS INJECTION
+# 1. PAGE CONFIGURATION & SESSION SETUP
 # ------------------------------------------------------------------------------
 st.set_page_config(
     page_title="SamyakAI Studio",
@@ -38,19 +38,6 @@ if 'app_lang' not in st.session_state:
 if current_time - st.session_state.last_credit_reset >= 86400:
     st.session_state.user_credits = MAX_CREDITS
     st.session_state.last_credit_reset = current_time
-
-# PINNED TOP-LEFT SAMYAKAI CREDITS BADGE (ABOVE SIDEBAR)
-st.markdown(f"""
-    <style>
-        [data-testid="stSidebarNav"] {{
-            padding-top: 0px;
-        }}
-    </style>
-    <div style="position: fixed; top: 10px; left: 15px; z-index: 999999; background: #1e1e2f; border: 1.5px solid #00d2ff; border-radius: 8px; padding: 4px 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-        <span style="font-size: 9px; font-weight: 700; color: #00d2ff; letter-spacing: 0.5px;">SAMYAKAI CREDITS</span><br>
-        <span style="font-size: 14px; font-weight: bold; color: #ffffff;">{st.session_state.user_credits} / {MAX_CREDITS}</span>
-    </div>
-""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
 # 2. GOOGLE GENAI CLIENT SETUP
@@ -196,9 +183,13 @@ labels = ui_labels.get(st.session_state.app_lang, ui_labels["English"])
 # 5. SIDEBAR NAVIGATION & SETTINGS
 # ------------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-    if os.path.exists("logo.png"):
-        st.image("logo.png", width=110)
+    # SAMYAKAI CREDITS PLACED AT THE TOP OF THE SIDEBAR (ABOVE CLOSE/COLLAPSE BUTTON)
+    st.markdown(f"""
+        <div style="background: #1e1e2f; border: 1.5px solid #00d2ff; border-radius: 8px; padding: 6px; text-align: center; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+            <span style="font-size: 10px; font-weight: 700; color: #00d2ff; letter-spacing: 0.5px;">SAMYAKAI CREDITS</span><br>
+            <span style="font-size: 16px; font-weight: bold; color: #ffffff;">{st.session_state.user_credits} / {MAX_CREDITS}</span>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.title(labels["nav_title"])
     
@@ -239,8 +230,11 @@ with st.sidebar:
         st.text("No history yet.")
 
 # ------------------------------------------------------------------------------
-# 6. APP HEADER
+# 6. APP HEADER (LOGO PLACED ABOVE COMPANION TITLE)
 # ------------------------------------------------------------------------------
+if os.path.exists("logo.png"):
+    st.image("logo.png", width=90)
+
 st.markdown(f"<h1>{labels['title']}</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color: #888; margin-top: -15px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
 st.divider()
