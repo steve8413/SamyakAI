@@ -95,7 +95,7 @@ def get_tithi() -> str:
 def is_jain_or_ai_query(query: str) -> bool:
     lower = query.lower()
     keywords = [
-        "jain", "jainism", "panchang", "tithi", "stavan", 
+        "jain", "jainism", "panchang", "tithi", "stavan", "samosaran", "samavasarana", "tirthankar",
         "ai", "artificial intelligence", "gemini", "image", "generate", "draw", "edit",
         "नमस्ते", "જૈન", "જૈનિઝમ"
     ]
@@ -278,7 +278,6 @@ with c2:
 with c3:
     uploaded_file = st.file_uploader(labels["upload"], type=["png", "jpg", "jpeg", "json"], disabled=force_image_mode)
 
-# Audio Input widget integration
 audio_input_file = st.audio_input("🎤 Record Audio Query")
 placeholder = "Enter prompt to generate Canvas Image..." if force_image_mode else labels["ask"]
 user_prompt = st.chat_input(placeholder)
@@ -360,35 +359,40 @@ if active_prompt:
                 "uploaded_img": uploaded_pil
             })
             
-            with st.spinner("Processing request with Gemini 3.6 Flash..."):
+            with st.spinner("Processing request..."):
                 try:
-                    system_instructions = f"""
-                    DATE: {live_date}
-                    CURRENT TITHI: {get_tithi()}
-                    USER QUERY: {active_prompt}
-                    APP UI LANGUAGE: {st.session_state.app_lang}
-                    STRICT RULES:
-                    1. Respond in the exact same language/script that the user used in their query. If ambiguous, use {st.session_state.app_lang}.
-                    2. Maintain tithi information context where applicable.
-                    3. Only Jainism or AI content is valid. If unrelated, answer in red text: "This software is designed for questions related to Jainism or AI."
-                    """
+                    is_valid = is_jain_or_ai_query(active_prompt)
                     
-                    if uploaded_pil:
-                        response = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=[uploaded_pil, system_instructions]
-                        )
+                    if not is_valid:
+                        answer_text = "This software is designed for questions related to Jainism or AI."
+                        formatted_answer = f"<div style='color:red'>{answer_text}</div>"
                     else:
-                        response = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=system_instructions
-                        )
-                    
-                    answer_text = response.text
-                    formatted_answer = answer_text if is_jain_or_ai_query(active_prompt) else f"<div style='color:red'>{answer_text}</div>"
+                        system_instructions = f"""
+                        DATE: {live_date}
+                        CURRENT TITHI: {get_tithi()}
+                        USER QUERY: {active_prompt}
+                        APP UI LANGUAGE: {st.session_state.app_lang}
+                        STRICT RULES:
+                        1. Respond in the exact same language/script that the user used in their query. If ambiguous, use {st.session_state.app_lang}.
+                        2. Maintain tithi information context where applicable.
+                        """
+                        
+                        if uploaded_pil:
+                            response = client.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=[uploaded_pil, system_instructions]
+                            )
+                        else:
+                            response = client.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=system_instructions
+                            )
+                        
+                        answer_text = response.text
+                        formatted_answer = answer_text
                     
                     audio_data = None
-                    if enable_voice_output:
+                    if enable_voice_output and is_valid:
                         try:
                             audio_data = text_to_speech_audio(answer_text, labels["lang_code"], selected_voice_profile)
                         except Exception:
@@ -405,4 +409,3 @@ if active_prompt:
 
                 except Exception as e:
                     st.error(f"Processing Error: {str(e)}")
-    
