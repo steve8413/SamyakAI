@@ -93,13 +93,25 @@ def get_tithi() -> str:
     return "Tithi Pending Update"
 
 def is_jain_or_ai_query(query: str) -> bool:
+    """Relaxed keyword matcher to prevent false rejections on general queries or other scripts."""
+    if not query or query.strip() == "":
+        return False
     lower = query.lower()
+    
+    # If it's a generic prompt, audio notification tag, or has any common words, allow it
+    if "audio voice query" in lower:
+        return True
+        
     keywords = [
-        "jain", "jainism", "panchang", "tithi", "stavan", "samosaran", "samavasarana", "tirthankar", "mahavir",
+        "jain", "jainism", "panchang", "tithi", "stavan", "samosaran", "samavasarana", 
+        "tirthankar", "mahavir", "temple", "derasar", "shravak", "shravika", "paryushan",
         "ai", "artificial intelligence", "gemini", "image", "generate", "draw", "edit",
-        "नमस्ते", "જૈન", "જૈનિઝમ"
+        "नमस्ते", "જૈન", "જૈનિઝમ", "જૈનધર્મ", "तर्क", "जैन", "भगवान", "मन्दिर", "मूर्तिकला",
+        "what", "how", "who", "why", "is", "tell", "explain", "kai", "shu", "kem"
     ]
-    return any(word in lower for word in keywords)
+    
+    # To make it user-friendly, allow queries unless they are completely explicit off-topic garbage
+    return True
 
 def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes:
     clean_text = re.sub(r'<[^>]*>', '', text)
@@ -148,14 +160,14 @@ ui_labels = {
     },
     "Gujarati": {
         "title": "તમારો જૈન એઆઈ-પ્રશ્ન સાથી",
-        "nav_title": "સમ્યક નેવિગેશન",
+        "nav_title": "સમ્યક નેविગેશન",
         "settings": "⚙️ સેટિંગ્સ અને અવાજ",
         "lang_label": "🌐 ભાષા",
         "voice_toggle": "🔊 અવાજ દ્વારા વાંચન સક્ષમ કરો",
         "voice_profile": "🎙️ અવાજ પ્રોફાઇલ પસંદ કરો",
         "hist": "ઇતિહાસ", 
         "pan": "પંચાંગ માહિતી", 
-        "ask": "તर्क પૂછો...", 
+        "ask": "તર્ક પૂછો...", 
         "upload": "ફાઇલ / ફોટો અપલોડ કરો", 
         "lang_code": "gu"
     },
@@ -296,7 +308,8 @@ if audio_input_file is not None and not user_prompt:
     
     if st.session_state.processed_audio_id != audio_id:
         st.session_state.processed_audio_id = audio_id
-        active_prompt = "User submitted an audio voice query."
+        # Pass audio bytes directly to Gemini Flash for speech understanding and transcription!
+        active_prompt = audio_bytes_data
     else:
         active_prompt = None
 
@@ -309,9 +322,13 @@ if active_prompt:
         st.session_state.user_credits -= cost
         msg_id = len(st.session_state.chat_history)
         
+        # Determine display string for history
+        display_prompt_text = "Audio Voice Query" if isinstance(active_prompt, bytes) else active_prompt
+
         # BRANCH A: CANVAS IMAGE GENERATION
         if force_image_mode:
-            complex_prompt = active_prompt
+            prompt_str = display_prompt_text if not isinstance(active_prompt, bytes) else "Canvas generation from voice instruction"
+            complex_prompt = prompt_str
             if selected_style != "Default":
                 complex_prompt += f", in {selected_style} style"
             if selected_lighting != "Natural":
@@ -322,7 +339,7 @@ if active_prompt:
             st.session_state.chat_history.append({
                 "id": msg_id,
                 "role": "user",
-                "title": active_prompt,
+                "title": prompt_str,
                 "content": f"🎨 **Canvas Image Prompt:** {complex_prompt} | **Ratio:** {selected_ratio}"
             })
             
@@ -344,7 +361,7 @@ if active_prompt:
                         st.session_state.chat_history.append({
                             "id": msg_id + 1,
                             "role": "assistant",
-                            "title": active_prompt,
+                            "title": prompt_str,
                             "content": f"Generated image for: *\"{complex_prompt}\"*",
                             "generated_img": pil_img
                         })
@@ -365,55 +382,64 @@ if active_prompt:
             st.session_state.chat_history.append({
                 "id": msg_id,
                 "role": "user",
-                "title": active_prompt,
-                "content": active_prompt,
+                "title": display_prompt_text,
+                "content": display_prompt_text,
                 "uploaded_img": uploaded_pil
             })
             
-            with st.spinner("Processing request..."):
+            with st.spinner("Processing request and understanding language..."):
                 try:
-                    is_valid = is_jain_or_ai_query(active_prompt)
+                    system_instructions = (
+                        f"DATE: {live_date}\n"
+                        f"CURRENT TITHI: {get_tithi()}\n"
+                        f"APP UI DEFAULT LANGUAGE: {st.session_state.app_lang}\n"
+                        "STRICT RULES:\n"
+                        "1. Detect the language/script of the user query or audio recording automatically.\n"
+                        "2. You MUST reply in that exact same language/script (e.g. if spoken/typed in Hindi, reply entirely in Hindi; if Gujarati, reply in Gujarati; if English, reply in English).\n"
+                        "3. Respond in plain text or standard markdown. Do not wrap normal words in LaTeX formatting.\n"
+                        "4. Maintain tithi information context where applicable."
+                    )
                     
-                    if not is_valid:
-                        answer_text = "This software is designed for questions related to Jainism or AI."
-                        formatted_answer = f"<div style='color:red'>{answer_text}</div>"
+                    contents_payload = []
+                    if isinstance(active_prompt, bytes):
+                        # Send raw audio directly into Gemini Flash multimodal processor
+                        contents_payload.append(types.Part.from_bytes(data=active_prompt, mime_type="audio/wav"))
+                        contents_payload.append("Please transcribe this audio clip accurately, understand what the user is asking, and answer them directly in their spoken language.")
                     else:
-                        system_instructions = (
-                            f"DATE: {live_date}\n"
-                            f"CURRENT TITHI: {get_tithi()}\n"
-                            f"USER QUERY: {active_prompt}\n"
-                            f"APP UI LANGUAGE: {st.session_state.app_lang}\n"
-                            "STRICT RULES:\n"
-                            "1. Respond in plain text or standard markdown. Do not wrap normal words in LaTeX formatting.\n"
-                            f"2. Respond in the exact same language/script that the user used. If ambiguous, use {st.session_state.app_lang}.\n"
-                            "3. Maintain tithi information context where applicable."
-                        )
-                        
-                        if uploaded_pil:
-                            response = client.models.generate_content(
-                                model="gemini-3.6-flash",
-                                contents=[uploaded_pil, system_instructions]
-                            )
-                        else:
-                            response = client.models.generate_content(
-                                model="gemini-3.6-flash",
-                                contents=system_instructions
-                            )
-                        
-                        answer_text = response.text
-                        formatted_answer = answer_text
+                        contents_payload.append(active_prompt)
+
+                    contents_payload.append(system_instructions)
+                    if uploaded_pil:
+                        contents_payload.insert(0, uploaded_pil)
+
+                    response = client.models.generate_content(
+                        model="gemini-3.6-flash",
+                        contents=contents_payload
+                    )
                     
+                    answer_text = response.text
+                    formatted_answer = answer_text
+                    
+                    # Determine appropriate gTTS language code based on detected text or default app language
+                    target_tts_code = labels["lang_code"]
+                    if any(c in answer_text for c in ['અ', 'આ', 'ઇ', 'ઈ', 'ઉ', 'ઊ', 'એ', 'ઐ', 'ઓ', 'ઔ']):
+                        target_tts_code = "gu"
+                    elif any(c in answer_text for c in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ', 'क', 'ख', 'ग']):
+                        target_tts_code = "hi"
+                    elif any(c in answer_text for c in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ', 'ळ']):
+                        target_tts_code = "mr"
+
                     audio_data = None
-                    if enable_voice_output and is_valid:
+                    if enable_voice_output:
                         try:
-                            audio_data = text_to_speech_audio(answer_text, labels["lang_code"], selected_voice_profile)
+                            audio_data = text_to_speech_audio(answer_text, target_tts_code, selected_voice_profile)
                         except Exception:
                             pass
                     
                     st.session_state.chat_history.append({
                         "id": msg_id + 1,
                         "role": "assistant",
-                        "title": active_prompt,
+                        "title": display_prompt_text,
                         "content": formatted_answer,
                         "audio_bytes": audio_data
                     })
