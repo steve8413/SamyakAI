@@ -552,4 +552,17 @@ def resolve_action_tier(force_image_mode, uploaded_file, user_prompt, is_audio_i
         return 1, "📜 Lyrics Generation / Standard Query"
 
         
+   # ==============================================================================
+# CREDIT CONFIRMATION & SAFE EXECUTION GATE (PASTE AT VERY END)
+# ==============================================================================
+
+def render_credit_confirmation_notice(action_name, cost):
+    """Displays a confirmation requirement box before spending user credits."""
+    st.warning(f"⚠️ **Credit Deduction Notice:** Action *'{action_name}'* will deduct **{cost} credits** from your balance.")
+    col1, col2 = st.columns(2)
+    with col1:
+        proceed = st.button("✅ Yes, Proceed", key=f"confirm_{hash(action_name)}")
+    with col2:
+        cancel = st.button("❌ Cancel", key=f"cancel_{hash(action_name)}")
+    return proceed, cancel
         
