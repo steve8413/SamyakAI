@@ -447,3 +447,74 @@ if active_prompt:
 
                 except Exception as e:
                     st.error(f"Processing Error: {str(e)}")
+                    # ==============================================================================
+# OVERRIDE: UPDATED VOICE PROFILES & ACCENTS (Replaces previous definition)
+# ==============================================================================
+def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes:
+    clean_text = re.sub(r'<[^>]*>', '', text)
+    
+    # Distinct regional TLD configurations for different accent profiles
+    profile_config = {
+        "Male 1 (Indian Accent)": {"tld": "co.in", "slow": False},
+        "Female 1 (Indian Accent)": {"tld": "co.in", "slow": True},
+        "Male 2 (US Accent)": {"tld": "com", "slow": False},
+        "Female 2 (US Accent)": {"tld": "ca", "slow": False}
+    }
+    
+    config = profile_config.get(voice_profile, {"tld": "co.in", "slow": False})
+    
+    active_lang = lang_code if lang_code in ['en', 'hi', 'gu', 'mr'] else 'en'
+    if active_lang not in ['en'] and config["tld"] in ["com", "ca"]:
+        config["tld"] = "co.in"
+
+    tts = gTTS(text=clean_text, lang=active_lang, tld=config["tld"], slow=config["slow"])
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    fp.seek(0)
+    return fp.read()
+    # ==============================================================================
+# SAMYAKAI MULTI-TIER ACTION & CONFIRMATION OVERRIDE EXTENSION
+# ==============================================================================
+
+# 1. Updated Text-to-Speech Voice Profile Function with Distinct Accents
+def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes:
+    clean_text = re.sub(r'<[^>]*>', '', text)
+    profile_config = {
+        "Male 1 (Indian Accent)": {"tld": "co.in", "slow": False},
+        "Female 1 (Indian Accent)": {"tld": "co.in", "slow": True},
+        "Male 2 (US Accent)": {"tld": "com", "slow": False},
+        "Female 2 (US Accent)": {"tld": "ca", "slow": False}
+    }
+    config = profile_config.get(voice_profile, {"tld": "co.in", "slow": False})
+    active_lang = lang_code if lang_code in ['en', 'hi', 'gu', 'mr'] else 'en'
+    if active_lang not in ['en'] and config["tld"] in ["com", "ca"]:
+        config["tld"] = "co.in"
+
+    tts = gTTS(text=clean_text, lang=active_lang, tld=config["tld"], slow=config["slow"])
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    fp.seek(0)
+    return fp.read()
+
+# 2. Action Cost Mapping & Tier Structure Notice Handler
+ACTION_COSTS = {
+    "Image Generation (Imagen 3)": 5,
+    "Image Editing / Variation": 1,
+    "Image Reference & Analysis": 0,
+    "Lyrics Generation / Standard Query": 1,
+    "Voice Cloning & Audio Synthesis": 5
+}
+
+def get_action_cost(mode_flag, has_image, is_audio_clone) -> tuple:
+    if mode_flag:
+        return 5, "Image Generation (Imagen 3)"
+    elif is_audio_clone:
+        return 5, "Voice Cloning & Audio Synthesis"
+    elif has_image and not user_prompt:
+        return 0, "Image Reference & Analysis"
+    elif has_image:
+        return 1, "Image Editing / Variation"
+    else:
+        return 1, "Lyrics Generation / Standard Query"
+        
+        
