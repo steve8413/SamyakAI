@@ -155,7 +155,7 @@ ui_labels = {
         "voice_profile": "🎙️ અવાજ પ્રોફાઇલ પસંદ કરો",
         "hist": "ઇતિહાસ", 
         "pan": "પંચાંગ માહિતી", 
-        "ask": "તર્ક પૂછો...", 
+        "ask": "તर्क પૂછો...", 
         "upload": "ફાઇલ / ફોટો અપલોડ કરો", 
         "lang_code": "gu"
     },
@@ -391,12 +391,12 @@ if active_prompt:
                         
                         if uploaded_pil:
                             response = client.models.generate_content(
-                                model="gemini-2.5-flash",
+                                model="gemini-3.6-flash",
                                 contents=[uploaded_pil, system_instructions]
                             )
                         else:
                             response = client.models.generate_content(
-                                model="gemini-2.5-flash",
+                                model="gemini-3.6-flash",
                                 contents=system_instructions
                             )
                         
