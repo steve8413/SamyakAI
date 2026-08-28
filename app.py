@@ -15,7 +15,7 @@ from google.genai import types
 # 1. PAGE CONFIGURATION & VAULT SETUP
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="SamyakAI Studio",
+    page_title="SamyakAI",
     page_icon="logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
