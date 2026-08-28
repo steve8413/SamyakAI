@@ -565,4 +565,45 @@ def render_credit_confirmation_notice(action_name, cost):
     with col2:
         cancel = st.button("❌ Cancel", key=f"cancel_{hash(action_name)}")
     return proceed, cancel
+        # ==============================================================================
+# SAMYAKAI COMBINED EXTENSION: SAFE IMAGE FALLBACK & CREDIT CONFIRMATION
+# (Paste this entire block at the very end of your code file)
+# ==============================================================================
+
+def safe_generate_image_fallback(client, prompt, aspect_ratio):
+    """Fallback handler to safely generate textual canvas layouts and bypass Enterprise-only API restrictions."""
+    try:
+        response = client.models.generate_content(
+            model="gemini-3.6-flash",
+            contents=f"Generate a detailed visual text description and artistic layout concept for a canvas artwork based on this prompt: '{prompt}' with aspect ratio {aspect_ratio}."
+        )
+        return response.text
+    except Exception as e:
+        return f"Canvas Generation Alternative Error: {str(e)}"
+
+def verify_and_deduct_credits(action_cost, action_name):
+    """
+    Checks user credits and prompts the user with an explicit confirmation 
+    button before deducting credits for any paid action.
+    """
+    if st.session_state.user_credits < action_cost:
+        st.error(f"❌ Insufficient credits! You need {action_cost} credits, but you only have {st.session_state.user_credits}.")
+        return False
         
+    if action_cost > 0:
+        st.warning(f"⚠️ **Credit Confirmation Notice:** '{action_name}' will cost **{action_cost} credits**.")
+        col1, col2 = st.columns(2)
+        with col1:
+            confirm = st.button("✅ Yes, Deduct & Proceed", key=f"btn_conf_{hash(action_name)}")
+        with col2:
+            cancel = st.button("❌ Cancel", key=f"btn_canc_{hash(action_name)}")
+            
+        if cancel:
+            st.info("Action cancelled by user.")
+            return False
+        if not confirm:
+            st.stop() # Pauses execution until the user clicks confirm
+            
+    st.session_state.user_credits -= action_cost
+    return True
+    
