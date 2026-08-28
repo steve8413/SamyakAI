@@ -606,4 +606,21 @@ def verify_and_deduct_credits(action_cost, action_name):
             
     st.session_state.user_credits -= action_cost
     return True
-    
+    # ==============================================================================
+# ULTIMATE OVERRIDE PATCH FOR IMAGEN 3 ERROR (PASTE AT VERY END)
+# ==============================================================================
+
+import sys
+
+def generate_images(*args, **kwargs):
+    """Safely intercepts enterprise image generation calls to prevent API crashes."""
+    st.error("⚠️ Direct image generation is restricted on standard developer API keys. Please use text descriptions, analysis, or audio features instead.")
+    return None
+
+# Forcefully override any global client image generation references if accessible
+try:
+    if 'client' in globals() and hasattr(client, 'models'):
+        client.models.generate_images = generate_images
+except Exception:
+    pass
+                
