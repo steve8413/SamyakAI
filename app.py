@@ -242,7 +242,7 @@ if os.path.exists("logo.png"):
     """, unsafe_allow_html=True)
 
 st.markdown(f"<h1>{labels['title']}</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color: #888; margin-top: -15px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
+st.markdown("<p style='color: #888; margin-top: -50px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
 st.divider()
 
 for item in st.session_state.chat_history:
