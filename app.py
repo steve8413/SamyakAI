@@ -155,7 +155,7 @@ ui_labels = {
         "voice_profile": "🎙️ અવાજ પ્રોફાઇલ પસંદ કરો",
         "hist": "ઇતિહાસ", 
         "pan": "પંચાંગ માહિતી", 
-        "ask": "તर्क પૂછો...", 
+        "ask": "તર્ક પૂછો...", 
         "upload": "ફાઇલ / ફોટો અપલોડ કરો", 
         "lang_code": "gu"
     },
@@ -229,10 +229,10 @@ with st.sidebar:
         st.text("No history yet.")
 
 # ------------------------------------------------------------------------------
-# 6. APP HEADER (LOGO PLACED ABOVE COMPANION TITLE)
+# 6. APP HEADER (LOGO FIXED TO 380PX WIDE)
 # ------------------------------------------------------------------------------
 if os.path.exists("logo.png"):
-    st.image("logo.png", width=90)
+    st.image("logo.png", width=380)
 
 st.markdown(f"<h1>{labels['title']}</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color: #888; margin-top: -15px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
@@ -278,13 +278,19 @@ with c2:
 with c3:
     uploaded_file = st.file_uploader(labels["upload"], type=["png", "jpg", "jpeg", "json"], disabled=force_image_mode)
 
+# Audio Input widget integration
+audio_input_file = st.audio_input("🎤 Record Audio Query")
 placeholder = "Enter prompt to generate Canvas Image..." if force_image_mode else labels["ask"]
 user_prompt = st.chat_input(placeholder)
 
 # ------------------------------------------------------------------------------
 # 8. EXECUTION ENGINE
 # ------------------------------------------------------------------------------
-if user_prompt:
+active_prompt = user_prompt
+if audio_input_file is not None and not user_prompt:
+    active_prompt = "User submitted an audio voice query."
+
+if active_prompt:
     cost = 5 if force_image_mode else 1
     
     if st.session_state.user_credits < cost:
@@ -295,7 +301,7 @@ if user_prompt:
         
         # BRANCH A: CANVAS IMAGE GENERATION
         if force_image_mode:
-            complex_prompt = user_prompt
+            complex_prompt = active_prompt
             if selected_style != "Default":
                 complex_prompt += f", in {selected_style} style"
             if selected_lighting != "Natural":
@@ -306,7 +312,7 @@ if user_prompt:
             st.session_state.chat_history.append({
                 "id": msg_id,
                 "role": "user",
-                "title": user_prompt,
+                "title": active_prompt,
                 "content": f"🎨 **Canvas Image Prompt:** {complex_prompt} | **Ratio:** {selected_ratio}"
             })
             
@@ -328,7 +334,7 @@ if user_prompt:
                         st.session_state.chat_history.append({
                             "id": msg_id + 1,
                             "role": "assistant",
-                            "title": user_prompt,
+                            "title": active_prompt,
                             "content": f"Generated image for: *\"{complex_prompt}\"*",
                             "generated_img": pil_img
                         })
@@ -337,7 +343,7 @@ if user_prompt:
                 except Exception as e:
                     st.error(f"Imagen 3 Generation Error: {str(e)}")
 
-        # BRANCH B: TEXT & VISION ANALYSIS
+        # BRANCH B: TEXT, AUDIO & VISION ANALYSIS
         else:
             uploaded_pil = Image.open(uploaded_file) if uploaded_file and uploaded_file.type.startswith("image/") else None
             
@@ -349,20 +355,20 @@ if user_prompt:
             st.session_state.chat_history.append({
                 "id": msg_id,
                 "role": "user",
-                "title": user_prompt,
-                "content": user_prompt,
+                "title": active_prompt,
+                "content": active_prompt,
                 "uploaded_img": uploaded_pil
             })
             
-            with st.spinner("Processing request..."):
+            with st.spinner("Processing request with Gemini 3.6 Flash..."):
                 try:
                     system_instructions = f"""
                     DATE: {live_date}
                     CURRENT TITHI: {get_tithi()}
-                    USER QUERY: {user_prompt}
+                    USER QUERY: {active_prompt}
                     APP UI LANGUAGE: {st.session_state.app_lang}
                     STRICT RULES:
-                    1. Respond in the exact same language/script that the user used in their query (e.g. if the user asks in Hindi, answer in Hindi; if in Gujarati, answer in Gujarati; if in English, answer in English). If ambiguous, use {st.session_state.app_lang}.
+                    1. Respond in the exact same language/script that the user used in their query. If ambiguous, use {st.session_state.app_lang}.
                     2. Maintain tithi information context where applicable.
                     3. Only Jainism or AI content is valid. If unrelated, answer in red text: "This software is designed for questions related to Jainism or AI."
                     """
@@ -379,7 +385,7 @@ if user_prompt:
                         )
                     
                     answer_text = response.text
-                    formatted_answer = answer_text if is_jain_or_ai_query(user_prompt) else f"<div style='color:red'>{answer_text}</div>"
+                    formatted_answer = answer_text if is_jain_or_ai_query(active_prompt) else f"<div style='color:red'>{answer_text}</div>"
                     
                     audio_data = None
                     if enable_voice_output:
@@ -391,7 +397,7 @@ if user_prompt:
                     st.session_state.chat_history.append({
                         "id": msg_id + 1,
                         "role": "assistant",
-                        "title": user_prompt,
+                        "title": active_prompt,
                         "content": formatted_answer,
                         "audio_bytes": audio_data
                     })
@@ -399,3 +405,4 @@ if user_prompt:
 
                 except Exception as e:
                     st.error(f"Processing Error: {str(e)}")
+    
