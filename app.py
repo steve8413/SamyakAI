@@ -237,7 +237,7 @@ if os.path.exists("logo.png"):
         encoded_logo = base64.b64encode(img_file.read()).decode()
     st.markdown(f"""
         <div style="margin-bottom: 2px;">
-            <img src="data:image/png;base64,{encoded_logo}" style="width: 350px; height: auto;" />
+            <img src="data:image/png;base64,{encoded_logo}" style="width: 370px; height: auto;" />
         </div>
     """, unsafe_allow_html=True)
 
