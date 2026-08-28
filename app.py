@@ -18,8 +18,7 @@ from google.genai import types
 st.set_page_config(
     page_title="SamyakAI Studio",
     page_icon="logo.png",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 PANCHANG_VAULT_FILE = "panchang_vault.json"
