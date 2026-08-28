@@ -477,9 +477,8 @@ if active_prompt:
                         1. Respond in plain text or standard markdown. Do not wrap normal words in LaTeX/math math formatting.
                         2. Respond in the exact same language/script that the user used in their query. If ambiguous, use {st.session_state.app_lang}.
                         3. Maintain tithi information context where applicable.
-                        """
-                        
-                        if uploaded_pil:
+                        ""
+                            if uploaded_pil:
                             response = client.models.generate_content(
                                 model="gemini-2.5-flash",
                                 contents=[uploaded_pil, system_instructions]
