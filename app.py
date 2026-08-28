@@ -18,7 +18,8 @@ from google.genai import types
 st.set_page_config(
     page_title="SamyakAI Studio",
     page_icon="logo.png",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 PANCHANG_VAULT_FILE = "panchang_vault.json"
@@ -154,7 +155,7 @@ ui_labels = {
         "voice_profile": "🎙️ અવાજ પ્રોફાઇલ પસંદ કરો",
         "hist": "ઇતિહાસ", 
         "pan": "પંચાંગ માહિતી", 
-        "ask": "તર્ક પૂછો...", 
+        "ask": "તर्क પૂછો...", 
         "upload": "ફાઇલ / ફોટો અપલોડ કરો", 
         "lang_code": "gu"
     },
@@ -213,23 +214,81 @@ with st.sidebar:
     
     st.divider()
     
-live_date = datetime.date.today().strftime("%d-%m-%Y")
+    live_date = datetime.date.today().strftime("%d-%m-%Y")
+    st.subheader(f"📅 {labels['pan']}")
+    st.metric(label="Date", value=live_date)
+    st.metric(label="Tithi", value=get_tithi())
+    
+    st.divider()
+    
+    st.subheader(f"📜 {labels['hist']}")
+    if st.session_state.chat_history:
+        for chat in reversed(st.session_state.chat_history[-5:]):
+            st.text(f"• {chat.get('title', 'Query')[:25]}...")
+    else:
+        st.text("No history yet.")
 
-# Main chat handling and processing execution wrapper
-user_prompt = st.chat_input(labels["ask"])
-uploaded_file = st.file_uploader(labels["upload"], type=["png", "jpg", "jpeg", "json"])
+# ------------------------------------------------------------------------------
+# 6. APP HEADER (LOGO PLACED ABOVE COMPANION TITLE)
+# ------------------------------------------------------------------------------
+if os.path.exists("logo.png"):
+    st.image("logo.png", width=90)
 
-# Optional controls placeholders if defined in your app UI logic
-force_image_mode = st.session_state.get('force_image_mode', False)
-selected_style = st.session_state.get('selected_style', 'Default')
-selected_lighting = st.session_state.get('selected_lighting', 'Natural')
-selected_detail = st.session_state.get('selected_detail', 'Standard')
-selected_ratio = st.session_state.get('selected_ratio', '1:1')
-cost = 1
+st.markdown(f"<h1>{labels['title']}</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color: #888; margin-top: -15px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
+st.divider()
 
+for item in st.session_state.chat_history:
+    with st.chat_message(item["role"]):
+        st.markdown(item["content"], unsafe_allow_html=True)
+        if item.get("uploaded_img"):
+            st.image(item["uploaded_img"], caption="Vault Image", width=300)
+        if item.get("generated_img"):
+            st.image(item["generated_img"], caption="Generated Canvas Output", use_column_width=True)
+            buf = io.BytesIO()
+            item["generated_img"].save(buf, format="PNG")
+            st.download_button(
+                label="📥 Download High-Res Output",
+                data=buf.getvalue(),
+                file_name="canvas_artwork.png",
+                mime="image/png",
+                key=f"dl_{item['id']}"
+            )
+        if item.get("audio_bytes") and item["role"] == "assistant":
+            st.audio(item["audio_bytes"], format="audio/mp3")
+
+# ------------------------------------------------------------------------------
+# 7. CANVAS BAR & GAMMA-STYLE POPOVER SETTINGS
+# ------------------------------------------------------------------------------
+st.markdown("---")
+
+c1, c2, c3 = st.columns([2, 2, 3])
+
+with c1:
+    force_image_mode = st.toggle("🎨 Force Canvas Image Mode", value=False)
+
+with c2:
+    with st.popover("🖼️ Canvas Image Settings"):
+        st.markdown("### Image Parameters (Gamma-style)")
+        selected_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16", "4:3", "3:4"], index=0)
+        selected_style = st.selectbox("Artistic Style", ["Default", "Ghibli Anime", "Photorealistic", "Digital Painting", "3D Render", "Vibrant Sketch"])
+        selected_lighting = st.selectbox("Lighting & Ambience", ["Natural", "Cinematic", "Studio Golden Hour", "Neon Cyberpunk"])
+        selected_detail = st.select_slider("Detail Level", options=["Standard", "High-Definition", "Ultra-Detailed 8K"])
+
+with c3:
+    uploaded_file = st.file_uploader(labels["upload"], type=["png", "jpg", "jpeg", "json"], disabled=force_image_mode)
+
+placeholder = "Enter prompt to generate Canvas Image..." if force_image_mode else labels["ask"]
+user_prompt = st.chat_input(placeholder)
+
+# ------------------------------------------------------------------------------
+# 8. EXECUTION ENGINE
+# ------------------------------------------------------------------------------
 if user_prompt:
+    cost = 5 if force_image_mode else 1
+    
     if st.session_state.user_credits < cost:
-        st.error("⚠️ You have run out of credits for today!")
+        st.error("24-Hour Credit Limit Reached! Quota resets tomorrow.")
     else:
         st.session_state.user_credits -= cost
         msg_id = len(st.session_state.chat_history)
@@ -308,17 +367,17 @@ if user_prompt:
                     3. Only Jainism or AI content is valid. If unrelated, answer in red text: "This software is designed for questions related to Jainism or AI."
                     """
                     
-                    # Safe payload builder for Gemini 3.6 Flash
-                    if uploaded_pil is not None:
-                        payload_contents = [uploaded_pil, system_instructions]
+                    if uploaded_pil:
+                        response = client.models.generate_content(
+                            model="gemini-3.6-flash",
+                            contents=[uploaded_pil, system_instructions]
+                        )
                     else:
-                        payload_contents = system_instructions
-
-                    response = client.models.generate_content(
-                        model="gemini-3.6-flash",
-                        contents=payload_contents
-                    )
-
+                        response = client.models.generate_content(
+                            model="gemini-3.6-flash",
+                            contents=system_instructions
+                        )
+                    
                     answer_text = response.text
                     formatted_answer = answer_text if is_jain_or_ai_query(user_prompt) else f"<div style='color:red'>{answer_text}</div>"
                     
@@ -340,4 +399,3 @@ if user_prompt:
 
                 except Exception as e:
                     st.error(f"Processing Error: {str(e)}")
-    
