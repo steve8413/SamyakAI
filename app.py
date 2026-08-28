@@ -6,149 +6,118 @@ import datetime
 import urllib.request
 import urllib.error
 import re
-# --- JAIN CALENDAR HELPER ---
-def fetch_svetambara_tithi_from_url(url: str) -> str:
+import json
+from io import BytesIO
+from PIL import Image
+
+# --- PAGE CONFIGURATION ---
+st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
+
+# --- DIRECTORY SETUP FOR DATA VAULT ---
+VAULT_DIR = "jain_vault"
+os.makedirs(VAULT_DIR, exist_ok=True)
+
+# --- PANCHANG MULTI-YEAR DATA STORE ---
+# Today's date set explicitly. Remaining space left open for image data entry extraction.
+STATIC_PANCHANG = {
+    "2026-08-28": "Shravan Sud 15",
+    # ---> PASTE YOUR 2-YEAR EXTRACTED PANCHANG DATA HERE <---
+}
+
+# --- AUTOMATIC PANCHANG MANAGER ---
+PANCHANG_VAULT_FILE = os.path.join(VAULT_DIR, "panchang_vault.json")
+
+def fetch_tithi_from_stavan() -> str:
+    url = "https://stavan.com/"
     try:
-        with urllib.request.urlopen(url, timeout=15) as resp:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as resp:
             html = resp.read().decode('utf-8', errors='ignore')
-    except (urllib.error.URLError, Exception):
-        return ""
-
-    patterns = [
-        r"\b([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad|sud|vad)\s+(\d{1,2})\b",
-        r"\bTithi[:\s]+([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad)\s+(\d{1,2})\b",
-        r"([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad)\s+(\d{1,2})",
-        r"Svetambara\s+Tithi\s*:\s*([A-Za-z]+)\s+(Shukla|Krishna|Sud|Vad)\s+(\d{1,2})",
-    ]
-    for pat in patterns:
-        match = re.search(pat, html, re.IGNORECASE)
-        if match:
-            month = match.group(1).capitalize()
-            phase = match.group(2).capitalize()
-            if phase == 'Shukla':
-                phase = 'Sud'
-            elif phase == 'Krishna':
-                phase = 'Vad'
-            number = match.group(3)
-            return f"{month} {phase} {number}"
-
+            match = re.search(r"([A-Za-z]+)\s+(Sud|Vad|Shukla|Krishna)\s+(\d{1,2})", html, re.IGNORECASE)
+            if match:
+                month = match.group(1).capitalize()
+                phase = 'Sud' if match.group(2).capitalize() in ['Sud', 'Shukla'] else 'Vad'
+                day = match.group(3)
+                return f"{month} {phase} {day}"
+    except Exception:
+        pass
     return ""
 
+def get_tithi() -> str:
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    
+    # 1. Check if user uploaded a dynamic panchang json file
+    if os.path.exists(PANCHANG_VAULT_FILE):
+        try:
+            with open(PANCHANG_VAULT_FILE, "r", encoding="utf-8") as f:
+                uploaded_panchang = json.load(f)
+                if today_str in uploaded_panchang:
+                    return uploaded_panchang[today_str]
+        except Exception:
+            pass
 
-def get_svetambara_tithi() -> str:
-    today = datetime.date.today()
-    candidate_urls = []
-    if "JAIN_TITHI_URL" in st.secrets:
-        candidate_urls.append(st.secrets["JAIN_TITHI_URL"])
+    # 2. Check static panchang dictionary
+    if today_str in STATIC_PANCHANG:
+        return STATIC_PANCHANG[today_str]
+        
+    # 3. Fallback exclusively to stavan.com
+    stavan_tithi = fetch_tithi_from_stavan()
+    if stavan_tithi:
+        return stavan_tithi
 
-    candidate_urls.extend([
-        "https://www.jainpanchang.com/panchang/",
-        "https://www.jainpanchang.com/",
-        "https://jainpanchang.com/",
-        "https://www.jainpanchang.in/panchang",
-        "https://www.panchangam.org/jain-panchang",
-    ])
-
-    for url in candidate_urls:
-        tithi = fetch_svetambara_tithi_from_url(url)
-        if tithi:
-            return tithi
-
-    return ""
-
+    return "Tithi Pending Update"
 
 def is_jain_or_ai_query(query: str) -> bool:
     lower = query.lower()
     keywords = [
-        "jain",
-        "jainism",
-        "svetambara",
-        "panchang",
-        "tithi",
-        "ai",
-        "artificial intelligence",
-        "gemini",
-        "chatgpt",
-        "machine learning"
+        "jain", "jainism", "panchang", "tithi", 
+        "ai", "artificial intelligence", "gemini", "chatgpt", "machine learning"
     ]
     return any(word in lower for word in keywords)
 
-# --- PILLAR 1: THE BRAIN ---
+# --- GEMINI SETUP ---
 if "API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["API_KEY"])
 else:
     st.error("API Key not found in Streamlit Secrets.")
 
-MODEL_NAME = 'gemini-3.1-flash-lite-preview'
+MODEL_NAME = 'gemini-1.5-flash'
 
-# --- UI & CSS (THE OVERRIDE) ---
-st.set_page_config(page_title="SamyakAI", page_icon="logo.png", layout="wide", initial_sidebar_state="expanded")
-# UI Multi-language Dictionary
+# --- UI MULTI-LANGUAGE DICTIONARY & CSS ---
 ui_labels = {
-    "English": {"hist": "1. History", "pan": "2. Panchang", "ask": "Ask SamyakAI logic..."},
-    "Hindi": {"hist": "1. इतिहास", "pan": "2. पंचांग", "ask": "तर्क पूछें..."},
-    "Gujarati": {"hist": "1. ઇતિહાસ", "pan": "2. પંચાંગ", "ask": "તર્ક પૂછો..."},
-    "Marathi": {"hist": "1. इतिहास", "pan": "2. पंचांग", "ask": "तर्क विचारा..."}
+    "English": {"hist": "Recent History", "pan": "Panchang", "ask": "Ask SamyakAI logic...", "upload": "Upload File / Image to Vault"},
+    "Hindi": {"hist": "इतिहास", "pan": "पंचांग", "ask": "तर्क पूछें...", "upload": "वॉल्ट में फाइल जोड़ें"},
+    "Gujarati": {"hist": "ઇતિહાસ", "pan": "પંચાંગ", "ask": "તર્ક પૂછો...", "upload": "વોલ્ટમાં ફાઇલ અપલોડ કરો"},
+    "Marathi": {"hist": "इतिहास", "pan": "पंचांग", "ask": "तर्क विचारा...", "upload": "व्हॉल्टमध्ये फाइल टाका"}
 }
 
 st.markdown("""
     <style>
-/* 1. SETTINGS ICON - NORMAL BUTTON */
-    div[data-testid="stPopover"] > button {
-        background-color: #4F8BF9 !important;
-        border: none !important;
-        padding: 0px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-shadow: 0px 4px 12px rgba(79, 139, 249, 0.4);
-        font-size: 24px !important;
-    }
-    
-    div[data-testid="stPopover"] > button:hover {
-        background-color: #3f7fe0 !important;
-        box-shadow: 0px 6px 16px rgba(79, 139, 249, 0.6) !important;
-    }
-    
-    div[data-testid="stPopover"] > button div {
-        padding: 0px !important;
-        margin: 0px !important;
-    }
-
-    /* 2. SIDEBAR TOGGLE VISIBILITY */
+    /* SIDEBAR TOGGLE VISIBILITY */
     button[data-testid="stSidebarCollapseButton"] {
         visibility: visible !important;
         display: block !important;
     }
-    
-    /* MOBILE RESPONSIVENESS */
     @media (max-width: 768px) {
         .stSidebar {
             display: block !important;
-            width: 250px !important;
-        }
-        button[data-testid="stSidebarCollapseButton"] {
-            display: none !important;
+            width: 270px !important;
         }
         .stColumns {
             flex-direction: column !important;
         }
     }
-    
-    /* 3. CLEAN UP INTERFACE */
     header {visibility: visible;}
     .block-container { padding-top: 1rem; }
-    
-    /* 4. FIX UPLOAD SECTION APPEARANCE */
     .stFileUploader {
         margin-bottom: -20px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- INITIALIZE DATA ---
-if 'voice_profile' not in st.session_state:
-    st.session_state.voice_profile = "Male 1"  # default
+# --- INITIALIZE SESSION STATE ---
+if 'voice_profile' not in st.session_state: st.session_state.voice_profile = "Male 1"
+if 'app_lang' not in st.session_state: st.session_state.app_lang = "English"
 if 'chat_history' not in st.session_state: st.session_state.chat_history = []
 if 'live_tithi' not in st.session_state: st.session_state.live_tithi = ""
 if 'last_tithi_date' not in st.session_state: st.session_state.last_tithi_date = None
@@ -156,74 +125,89 @@ if 'last_tithi_date' not in st.session_state: st.session_state.last_tithi_date =
 # --- UPDATE TITHI DAILY ---
 today = datetime.date.today()
 if st.session_state.last_tithi_date != today:
-    st.session_state.live_tithi = get_svetambara_tithi()
+    st.session_state.live_tithi = get_tithi()
     st.session_state.last_tithi_date = today
 
-# --- THE SETTINGS (TOP RIGHT) ---
-with st.popover("⚙️"):
-    st.subheader("Preferences")
-    st.session_state.app_lang = st.selectbox("Interface Language", ["English", "Hindi", "Gujarati", "Marathi"])
-    st.session_state.voice_profile = st.radio("Voice", ["Male 1", "Male 2", "Female 1", "Female 2"])
-    st.info("📁 Vault Capacity: 10GB Active")
+labels = ui_labels.get(st.session_state.app_lang, ui_labels["English"])
 
+# --- PERSISTENT SIDEBAR CONTROLS & NAVIGATION ---
+with st.sidebar:
+    st.title("Samyak Navigation")
+    
+    st.subheader("⚙️ Settings")
+    st.session_state.app_lang = st.selectbox(
+        "🌐 Language", 
+        ["English", "Hindi", "Gujarati", "Marathi"],
+        index=["English", "Hindi", "Gujarati", "Marathi"].index(st.session_state.app_lang)
+    )
+    st.session_state.voice_profile = st.radio(
+        "🎙️ Voice Profile", 
+        ["Male 1", "Male 2", "Female 1", "Female 2"],
+        index=["Male 1", "Male 2", "Female 1", "Female 2"].index(st.session_state.voice_profile)
+    )
+    
+    st.divider()
+    
+    live_date = datetime.date.today().strftime("%d-%m-%Y")
+    st.subheader(f"📅 {labels['pan']}")
+    st.metric(label="Date (English)", value=live_date)
+    st.metric(label="Tithi", value=st.session_state.live_tithi or "Shravan Sud 15")
+    
+    st.divider()
+    
+    st.subheader(f"📜 {labels['hist']}")
+    if st.session_state.chat_history:
+        for chat in reversed(st.session_state.chat_history[-5:]):
+            st.text(f"• {chat['title']}")
+    else:
+        st.text("No history yet.")
 
 # --- TOP CENTRE LOGO & SIGNATURE ---
 _, center_col, _ = st.columns([1, 2, 1])
 with center_col:
-    if os.path.exists("logo.png"):
-        st.image("logo.png", use_container_width=True)
-    else:
-        st.markdown("<h1 style='text-align: center; color: #4F8BF9;'>SamyakAI</h1>", unsafe_allow_html=True)
-        
+    st.image("logo.png", use_container_width=True)
     st.markdown("<p style='text-align: center; font-size: 30px; font-weight: bold;'>Your Jain AI-Question Companion</p>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: right; font-size: 24px; color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
 
 st.write("---")
 
-# --- THE PERSISTENT SIDEBAR ---
-with st.sidebar:
-    st.title("Samyak Navigation")
-    live_date = datetime.date.today().strftime("%d-%m-%Y")  # English date format
-    st.subheader("📅 Panchang")
-    st.metric(label="Date (English)", value=live_date)
-    st.metric(label="Shvetambara Tithi", value=st.session_state.live_tithi or "Not available")
-    st.divider()
-    st.subheader("📜 Recent History")
-    for chat in reversed(st.session_state.chat_history[-5:]):
-        st.text(f"• {chat['title']}")
-
 # --- INPUT DOCK ---
-c_file, c_txt, c_mic = st.columns([1.5, 6.5, 2])
+c_file, c_txt, c_mic = st.columns([2, 6, 2])
 
+image_input = None
 with c_file:
-    st.file_uploader("📎", label_visibility="visible")
+    uploaded_file = st.file_uploader("📎", label_visibility="visible", type=["png", "jpg", "jpeg", "txt", "json"])
     st.caption("Vault: 10GB Max")
+    if uploaded_file is not None:
+        file_path = os.path.join(VAULT_DIR, uploaded_file.name)
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        
+        if uploaded_file.name.endswith(".json"):
+            with open(PANCHANG_VAULT_FILE, "wb") as pf:
+                pf.write(uploaded_file.getbuffer())
+            st.success("Integrated new Panchang JSON dataset!")
+            st.session_state.live_tithi = get_tithi()
+        else:
+            st.success(f"Absorbed to Vault: {uploaded_file.name}")
+
+        if uploaded_file.type.startswith("image/"):
+            image_input = Image.open(uploaded_file)
 
 with c_txt:
-    user_input = st.chat_input("Ask a question...")
+    user_input = st.chat_input(labels["ask"])
 
 with c_mic:
-    mic_key = f"mic_{datetime.datetime.now().strftime('%M%S')}"
-    audio_data = st.audio_input("🎤", label_visibility="visible", key=mic_key)
-    audio_value = st.audio_input("🎤 Record a voice message and give answer in words and voice as usual")
-
-if audio_value:
-    st.audio(audio_value)
-else:
-    st.info(
-        "If microphone is blocked, please open this app at its **HTTPS link**. "
-        "Microphone does not work over plain HTTP on most browsers."
-    )
-
+    audio_data = st.audio_input("🎤", label_visibility="visible", key="single_mic_input")
 
 # --- PROCESSING ---
-if user_input or audio_data:
-    query = user_input if user_input else "Voice prompt"
+if user_input or audio_data or image_input:
+    query = user_input if user_input else ("Voice prompt question" if audio_data else "Image analysis query")
     
     with st.chat_message("assistant"):
         prompt = f"""
         DATE: {live_date} (English format)
-        CURRENT SHVETAMBARA TITHI: {st.session_state.live_tithi or 'Not available'}  # strict month Sud/Vad day format
+        CURRENT TITHI: {st.session_state.live_tithi or 'Shravan Sud 15'}
         QUERY: {query}
         STRICT RULES:[!important]
         1. Answer in the EXACT language: {st.session_state.app_lang}.
@@ -232,13 +216,19 @@ if user_input or audio_data:
         4. Mention punya tithi / special day about any sadhu/sadhviji/bhagwant if it falls on the same day.
         5. Only Jainism or AI content is valid. If the question is not about Jainism or AI, answer in red text: "This software is made only for questions related to Jainism or AI".
         6. Speed: < 3 seconds.
-        7. Provide Shvetambara tithi information when relevant.
+        7. Provide tithi information when relevant.
         """
         
         try:
             model = genai.GenerativeModel(MODEL_NAME)
-            response = model.generate_content(prompt)
+            
+            if image_input:
+                response = model.generate_content([prompt, image_input])
+            else:
+                response = model.generate_content(prompt)
+                
             answer = response.text
+            
             if is_jain_or_ai_query(query):
                 st.markdown(answer)
             else:
@@ -246,22 +236,20 @@ if user_input or audio_data:
             
             v_map = {
                 "Male 1": {"slow": False, "tld": 'co.in'},
-                "Male 2": {"slow": True, "tld": 'com.in'},
-                "Female 1": {"slow": False, "tld": 'com.in'},
-                "Female 2": {"slow": True, "tld": 'com.in'}
+                "Male 2": {"slow": True, "tld": 'co.in'},
+                "Female 1": {"slow": False, "tld": 'com'},
+                "Female 2": {"slow": True, "tld": 'com'}
             }
-            cfg = v_map[st.session_state.voice_profile]
+            cfg = v_map.get(st.session_state.voice_profile, {"slow": False, "tld": 'co.in'})
             l_code = 'hi' if any(ord(c) > 128 for c in answer[:15]) else 'en'
             
-            tts = gTTS(text=answer, lang=l_code, slow=cfg["slow"])
-            tts.save("voice_reply.mp3")
-            st.audio("voice_reply.mp3", autoplay=True)
+            audio_buffer = BytesIO()
+            tts = gTTS(text=answer, lang=l_code, slow=cfg["slow"], tld=cfg["tld"])
+            tts.write_to_fp(audio_buffer)
+            audio_buffer.seek(0)
             
+            st.audio(audio_buffer, format="audio/mp3", autoplay=True)
             st.session_state.chat_history.append({"title": query})
-            if "Tithi:" in answer:
-                st.session_state.live_tithi = answer.split("Tithi:")[1].split("\n")[0].strip()
-                st.rerun()
                 
         except Exception as e:
-            st.error("Engine reset. Please try again.")
-            
+            st.error(f"Processing error: {str(e)}")
