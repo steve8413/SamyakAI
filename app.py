@@ -13,7 +13,7 @@ from google import genai
 from google.genai import types
 
 # ------------------------------------------------------------------------------
-# 1. PAGE CONFIGURATION & VAULT SETUP
+# 1. PAGE CONFIGURATION & TOP-LEFT CREDITS INJECTION
 # ------------------------------------------------------------------------------
 st.set_page_config(
     page_title="SamyakAI Studio",
@@ -23,6 +23,34 @@ st.set_page_config(
 )
 
 PANCHANG_VAULT_FILE = "panchang_vault.json"
+MAX_CREDITS = 50
+current_time = time.time()
+
+if 'user_credits' not in st.session_state: 
+    st.session_state.user_credits = MAX_CREDITS
+if 'last_credit_reset' not in st.session_state: 
+    st.session_state.last_credit_reset = current_time
+if 'chat_history' not in st.session_state: 
+    st.session_state.chat_history = []
+if 'app_lang' not in st.session_state: 
+    st.session_state.app_lang = "English"
+
+if current_time - st.session_state.last_credit_reset >= 86400:
+    st.session_state.user_credits = MAX_CREDITS
+    st.session_state.last_credit_reset = current_time
+
+# PINNED TOP-LEFT SAMYAKAI CREDITS BADGE (ABOVE SIDEBAR)
+st.markdown(f"""
+    <style>
+        [data-testid="stSidebarNav"] {{
+            padding-top: 0px;
+        }}
+    </style>
+    <div style="position: fixed; top: 10px; left: 15px; z-index: 999999; background: #1e1e2f; border: 1.5px solid #00d2ff; border-radius: 8px; padding: 4px 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+        <span style="font-size: 9px; font-weight: 700; color: #00d2ff; letter-spacing: 0.5px;">SAMYAKAI CREDITS</span><br>
+        <span style="font-size: 14px; font-weight: bold; color: #ffffff;">{st.session_state.user_credits} / {MAX_CREDITS}</span>
+    </div>
+""", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------------------
 # 2. GOOGLE GENAI CLIENT SETUP
@@ -81,14 +109,13 @@ def is_jain_or_ai_query(query: str) -> bool:
     lower = query.lower()
     keywords = [
         "jain", "jainism", "panchang", "tithi", "stavan", 
-        "ai", "artificial intelligence", "gemini", "image", "generate", "draw", "edit"
+        "ai", "artificial intelligence", "gemini", "image", "generate", "draw", "edit",
+        "नमस्ते", "જૈન", "જૈનિઝમ"
     ]
     return any(word in lower for word in keywords)
 
 def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes:
     clean_text = re.sub(r'<[^>]*>', '', text)
-    
-    # Mapping: Male 1 & Female 1 = Indian Accent (co.in), Male 2 & Female 2 = US Accent (com)
     tld_map = {
         "Male 1 (Indian Accent)": "co.in",
         "Female 1 (Indian Accent)": "co.in",
@@ -96,7 +123,6 @@ def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes
         "Female 2 (US Accent)": "com"
     }
     tld = tld_map.get(voice_profile, "co.in")
-    
     tts = gTTS(text=clean_text, lang=lang_code, tld=tld, slow=False)
     fp = io.BytesIO()
     tts.write_to_fp(fp)
@@ -104,51 +130,90 @@ def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes
     return fp.read()
 
 # ------------------------------------------------------------------------------
-# 4. SESSION STATE & DAILY CREDIT QUOTA TRACKER (50 CREDITS)
+# 4. LOCALIZED UI LABELS DICTIONARY
 # ------------------------------------------------------------------------------
-MAX_CREDITS = 50
-current_time = time.time()
-
-if 'user_credits' not in st.session_state: 
-    st.session_state.user_credits = MAX_CREDITS
-if 'last_credit_reset' not in st.session_state: 
-    st.session_state.last_credit_reset = current_time
-if 'chat_history' not in st.session_state: 
-    st.session_state.chat_history = []
-if 'app_lang' not in st.session_state: 
-    st.session_state.app_lang = "English"
-
-if current_time - st.session_state.last_credit_reset >= 86400:
-    st.session_state.user_credits = MAX_CREDITS
-    st.session_state.last_credit_reset = current_time
-
 ui_labels = {
-    "English": {"hist": "Recent History", "pan": "Panchang Info", "ask": "Ask SamyakAI logic...", "upload": "Upload File / Image", "lang_code": "en"},
-    "Hindi": {"hist": "इतिहास", "pan": "पंचांग जानकारी", "ask": "तर्क पूछें...", "upload": "फाइल / फोटो अपलोड करें", "lang_code": "hi"},
-    "Gujarati": {"hist": "ઇતિહાસ", "pan": "પંચાંગ માહિતી", "ask": "તर्क પૂછો...", "upload": "ફાઇલ / ફોટો અપલોડ કરો", "lang_code": "gu"},
-    "Marathi": {"hist": "इतिहास", "pan": "पंचांग माहिती", "ask": "तर्क विचारा...", "upload": "फाइल / फोटो टाका", "lang_code": "mr"}
+    "English": {
+        "title": "Your Jain AI-Question Companion",
+        "nav_title": "Samyak Navigation",
+        "settings": "⚙️ Settings & Voice",
+        "lang_label": "🌐 Language",
+        "voice_toggle": "🔊 Enable Voice Readout",
+        "voice_profile": "🎙️ Select Voice Profile",
+        "hist": "Recent History", 
+        "pan": "Panchang Info", 
+        "ask": "Ask SamyakAI logic...", 
+        "upload": "Upload File / Image", 
+        "lang_code": "en"
+    },
+    "Hindi": {
+        "title": "आपका जैन एआई-प्रश्न साथी",
+        "nav_title": "सम्यक नेविगेशन",
+        "settings": "⚙️ सेटिंग्स और आवाज़",
+        "lang_label": "🌐 भाषा",
+        "voice_toggle": "🔊 आवाज़ से पढ़ना सक्षम करें",
+        "voice_profile": "🎙️ आवाज़ प्रोफाइल चुनें",
+        "hist": "इतिहास", 
+        "pan": "पंचांग जानकारी", 
+        "ask": "तर्क पूछें...", 
+        "upload": "फाइल / फोटो अपलोड करें", 
+        "lang_code": "hi"
+    },
+    "Gujarati": {
+        "title": "તમારો જૈન એઆઈ-પ્રશ્ન સાથી",
+        "nav_title": "સમ્યક નેવિગેશન",
+        "settings": "⚙️ સેટિંગ્સ અને અવાજ",
+        "lang_label": "🌐 ભાષા",
+        "voice_toggle": "🔊 અવાજ દ્વારા વાંચન સક્ષમ કરો",
+        "voice_profile": "🎙️ અવાજ પ્રોફાઇલ પસંદ કરો",
+        "hist": "ઇતિહાસ", 
+        "pan": "પંચાંગ માહિતી", 
+        "ask": "તર્ક પૂછો...", 
+        "upload": "ફાઇલ / ફોટો અપલોડ કરો", 
+        "lang_code": "gu"
+    },
+    "Marathi": {
+        "title": "तुमचा जैन एआय-प्रश्न सोबती",
+        "nav_title": "सम्यक नॅव्हिगेशन",
+        "settings": "⚙️ सेटिंग्ज आणि आवाज",
+        "lang_label": "🌐 भाषा",
+        "voice_toggle": "🔊 आवाजात वाचणे सुरू करा",
+        "voice_profile": "🎙️ आवाजाचा प्रकार निवडा",
+        "hist": "इतिहास", 
+        "pan": "पंचांग माहिती", 
+        "ask": "तर्क विचारा...", 
+        "upload": "फाइल / फोटो टाका", 
+        "lang_code": "mr"
+    }
 }
+
+def update_language():
+    st.session_state.app_lang = st.session_state.lang_selector
+
 labels = ui_labels.get(st.session_state.app_lang, ui_labels["English"])
 
 # ------------------------------------------------------------------------------
 # 5. SIDEBAR NAVIGATION & SETTINGS
 # ------------------------------------------------------------------------------
 with st.sidebar:
+    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
     if os.path.exists("logo.png"):
-        st.image("logo.png", width=120)
+        st.image("logo.png", width=110)
     
-    st.title("Samyak Navigation")
+    st.title(labels["nav_title"])
     
-    st.subheader("⚙️ Settings & Voice")
-    st.session_state.app_lang = st.selectbox(
-        "🌐 Language", 
+    st.subheader(labels["settings"])
+    st.selectbox(
+        labels["lang_label"], 
         ["English", "Hindi", "Gujarati", "Marathi"],
-        index=["English", "Hindi", "Gujarati", "Marathi"].index(st.session_state.app_lang)
+        index=["English", "Hindi", "Gujarati", "Marathi"].index(st.session_state.app_lang),
+        key="lang_selector",
+        on_change=update_language
     )
     
-    enable_voice_output = st.checkbox("🔊 Enable Voice Readout", value=True)
+    enable_voice_output = st.checkbox(labels["voice_toggle"], value=True)
     selected_voice_profile = st.selectbox(
-        "🎙️ Select Voice Profile",
+        labels["voice_profile"],
         [
             "Male 1 (Indian Accent)", 
             "Female 1 (Indian Accent)", 
@@ -161,7 +226,7 @@ with st.sidebar:
     
     live_date = datetime.date.today().strftime("%d-%m-%Y")
     st.subheader(f"📅 {labels['pan']}")
-    st.metric(label="Date (English)", value=live_date)
+    st.metric(label="Date", value=live_date)
     st.metric(label="Tithi", value=get_tithi())
     
     st.divider()
@@ -174,21 +239,10 @@ with st.sidebar:
         st.text("No history yet.")
 
 # ------------------------------------------------------------------------------
-# 6. APP HEADER & ALWAYS-VISIBLE CREDITS
+# 6. APP HEADER
 # ------------------------------------------------------------------------------
-col_h1, col_h2 = st.columns([3, 1])
-with col_h1:
-    st.markdown("<h1>Your Jain AI-Question Companion</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
-
-with col_h2:
-    st.markdown(f"""
-        <div style="background: #1e1e2f; border: 1px solid #00d2ff; border-radius: 10px; padding: 10px; text-align: center; margin-top: 10px;">
-            <span style="font-size: 12px; font-weight: 700; color: #e0e0e0;">GEMINI CREDITS</span><br>
-            <span style="font-size: 20px; font-weight: bold; color: #00d2ff;">{st.session_state.user_credits} / {MAX_CREDITS}</span>
-        </div>
-    """, unsafe_allow_html=True)
-
+st.markdown(f"<h1>{labels['title']}</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color: #888; margin-top: -15px;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
 st.divider()
 
 for item in st.session_state.chat_history:
@@ -312,9 +366,10 @@ if user_prompt:
                     system_instructions = f"""
                     DATE: {live_date}
                     CURRENT TITHI: {get_tithi()}
-                    QUERY: {user_prompt}
+                    USER QUERY: {user_prompt}
+                    APP UI LANGUAGE: {st.session_state.app_lang}
                     STRICT RULES:
-                    1. Answer in language: {st.session_state.app_lang}.
+                    1. Respond in the exact same language/script that the user used in their query (e.g. if the user asks in Hindi, answer in Hindi; if in Gujarati, answer in Gujarati; if in English, answer in English). If ambiguous, use {st.session_state.app_lang}.
                     2. Maintain tithi information context where applicable.
                     3. Only Jainism or AI content is valid. If unrelated, answer in red text: "This software is designed for questions related to Jainism or AI."
                     """
