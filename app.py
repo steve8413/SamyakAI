@@ -706,3 +706,31 @@ def resolve_action_tier(force_image_mode, uploaded_file, user_prompt, is_audio_i
     else:
         return 1, "📜 Lyrics Generation / Standard Query"
         
+# ==============================================================================
+# FINAL POLLINATIONS IMAGE DISPLAY OVERRIDE (PASTE AT VERY END)
+# ==============================================================================
+import urllib.parse
+
+def render_pollinations_canvas(prompt: str, aspect_ratio: str = "1:1"):
+    """
+    Renders a free image directly in Streamlit using Pollinations.ai 
+    completely bypassing any Google Enterprise API restrictions.
+    """
+    width, height = 1024, 1024
+    if aspect_ratio == "16:9":
+        width, height = 1280, 720
+    elif aspect_ratio == "9:16":
+        width, height = 720, 1280
+    elif aspect_ratio == "4:3":
+        width, height = 1024, 768
+    elif aspect_ratio == "3:4":
+        width, height = 768, 1024
+        
+    encoded_prompt = urllib.parse.quote(prompt)
+    image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true"
+    
+    st.success("🎨 Canvas Image Generated Successfully (Free Tier)")
+    st.image(image_url, caption=f"Prompt: {prompt}", use_column_width=True)
+    st.markdown(f"[📥 Download Image Directly]({image_url})", unsafe_allow_html=True)
+    return image_url
+    
