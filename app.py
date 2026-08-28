@@ -8,6 +8,7 @@ import urllib.request
 import urllib.parse
 import streamlit as st
 from PIL import Image
+from gtts import gTTS
 from google import genai
 from google.genai import types
 
@@ -15,13 +16,12 @@ from google.genai import types
 # 1. PAGE CONFIGURATION & VAULT SETUP
 # ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="SamyakAI",
+    page_title="SamyakAI Studio",
     page_icon="logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Look for panchang_vault.json directly in the root directory
 PANCHANG_VAULT_FILE = "panchang_vault.json"
 
 # ------------------------------------------------------------------------------
@@ -85,6 +85,14 @@ def is_jain_or_ai_query(query: str) -> bool:
     ]
     return any(word in lower for word in keywords)
 
+def text_to_speech_audio(text: str, lang_code: str) -> bytes:
+    clean_text = re.sub(r'<[^>]*>', '', text)  # Strip HTML tags for cleaner speech
+    tts = gTTS(text=clean_text, lang=lang_code, slow=False)
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    fp.seek(0)
+    return fp.read()
+
 # ------------------------------------------------------------------------------
 # 4. SESSION STATE & DAILY CREDIT QUOTA TRACKER (50 CREDITS)
 # ------------------------------------------------------------------------------
@@ -105,25 +113,31 @@ if current_time - st.session_state.last_credit_reset >= 86400:
     st.session_state.last_credit_reset = current_time
 
 ui_labels = {
-    "English": {"hist": "Recent History", "pan": "Panchang Info", "ask": "Ask SamyakAI logic...", "upload": "Upload File / Image"},
-    "Hindi": {"hist": "इतिहास", "pan": "पंचांग जानकारी", "ask": "तर्क पूछें...", "upload": "फाइल / फोटो अपलोड करें"},
-    "Gujarati": {"hist": "ઇતિહાસ", "pan": "પંચાંગ માહિતી", "ask": "તर्क પૂછો...", "upload": "ફાઇલ / ફોટો અપલોડ કરો"},
-    "Marathi": {"hist": "इतिहास", "pan": "पंचांग माहिती", "ask": "तर्क विचारा...", "upload": "फाइल / फोटो टाका"}
+    "English": {"hist": "Recent History", "pan": "Panchang Info", "ask": "Ask SamyakAI logic...", "upload": "Upload File / Image", "lang_code": "en"},
+    "Hindi": {"hist": "इतिहास", "pan": "पंचांग जानकारी", "ask": "तर्क पूछें...", "upload": "फाइल / फोटो अपलोड करें", "lang_code": "hi"},
+    "Gujarati": {"hist": "ઇતિહાસ", "pan": "પંચાંગ માહિતી", "ask": "તर्क પૂછો...", "upload": "ફાઇલ / ફોટો અપલોડ કરો", "lang_code": "gu"},
+    "Marathi": {"hist": "इतिहास", "pan": "પંચાંગ माहिती", "ask": "तर्क विचारा...", "upload": "फाइल / फोटो टाका", "lang_code": "mr"}
 }
 labels = ui_labels.get(st.session_state.app_lang, ui_labels["English"])
 
 # ------------------------------------------------------------------------------
-# 5. SIDEBAR NAVIGATION & PANCHANG DISPLAY
+# 5. SIDEBAR NAVIGATION & SETTINGS
 # ------------------------------------------------------------------------------
 with st.sidebar:
+    # Try displaying logo image in sidebar if available
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=80)
+    
     st.title("Samyak Navigation")
     
-    st.subheader("⚙️ Settings")
+    st.subheader("⚙️ Settings & Audio")
     st.session_state.app_lang = st.selectbox(
         "🌐 Language", 
         ["English", "Hindi", "Gujarati", "Marathi"],
         index=["English", "Hindi", "Gujarati", "Marathi"].index(st.session_state.app_lang)
     )
+    
+    enable_voice_output = st.checkbox("🔊 Enable Voice Readout (TTS)", value=True)
     
     st.divider()
     
@@ -151,7 +165,7 @@ with st.sidebar:
 # ------------------------------------------------------------------------------
 # 6. APP HEADER
 # ------------------------------------------------------------------------------
-st.markdown("<h1 style='text-align: center;'>Your Jain AI Studio & Assistant</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>Your Jain AI-Question Companion</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: right; color: #888;'>- MADE BY STAVYA SHAH</p>", unsafe_allow_html=True)
 st.divider()
 
@@ -171,6 +185,8 @@ for item in st.session_state.chat_history:
                 mime="image/png",
                 key=f"dl_{item['id']}"
             )
+        if item.get("audio_bytes") and item["role"] == "assistant":
+            st.audio(item["audio_bytes"], format="audio/mp3")
 
 # ------------------------------------------------------------------------------
 # 7. CANVAS BAR & GAMMA-STYLE POPOVER SETTINGS
@@ -295,11 +311,19 @@ if user_prompt:
                     answer_text = response.text
                     formatted_answer = answer_text if is_jain_or_ai_query(user_prompt) else f"<div style='color:red'>{answer_text}</div>"
                     
+                    audio_data = None
+                    if enable_voice_output:
+                        try:
+                            audio_data = text_to_speech_audio(answer_text, labels["lang_code"])
+                        except Exception:
+                            pass
+                    
                     st.session_state.chat_history.append({
                         "id": msg_id + 1,
                         "role": "assistant",
                         "title": user_prompt,
-                        "content": formatted_answer
+                        "content": formatted_answer,
+                        "audio_bytes": audio_data
                     })
                     st.rerun()
 
