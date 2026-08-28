@@ -99,9 +99,9 @@ client = initialize_gemini_client()
 
 STATIC_PANCHANG_REGISTRY = {
     "2026-08-28": "Shravan Sud 15",
-    "2026-08-29": "Shravan Sud Poonam",
-    "2026-08-30": "Shravan Vad 1",
-    "2026-08-31": "Shravan Vad 2"
+    "2026-08-29": "Shravan Vad 1",
+    "2026-08-30": "Shravan Vad 2",
+    "2026-08-31": "Shravan Vad 3"
 }
 
 
@@ -513,4 +513,103 @@ if active_processed_prompt or uploaded_user_file:
                 })
                 
                 with st.spinner("Generating creative artwork layout..."):
-                    generated_image_url = get_free_pollinations_image(enhanced_c
+                    generated_image_url = get_free_pollinations_image(enhanced_canvas_prompt, selected_aspect_ratio)
+                    
+                    st.session_state.chat_history.append({
+                        "id": message_identifier + 1,
+                        "role": "assistant",
+                        "title": base_prompt_string,
+                        "content": f"Successfully generated canvas artwork for: *\"{enhanced_canvas_prompt}\"*",
+                        "generated_url": generated_image_url
+                    })
+                    st.rerun()
+
+            # ------------------------------------------------------------------
+            # EXECUTION BRANCH B: MULTIMODAL GEMINI TEXT, AUDIO & VISION PROCESSING
+            # ------------------------------------------------------------------
+            else:
+                loaded_pil_image = (
+                    Image.open(uploaded_user_file) 
+                    if uploaded_user_file and uploaded_user_file.type.startswith("image/") 
+                    else None
+                )
+                
+                if uploaded_user_file and uploaded_user_file.name.endswith(".json"):
+                    with open(PANCHANG_VAULT_FILE, "wb") as vault_write_stream:
+                        vault_write_stream.write(uploaded_user_file.getbuffer())
+                    st.success("Successfully integrated new Panchang JSON dataset into application vault!")
+
+                st.session_state.chat_history.append({
+                    "id": message_identifier,
+                    "role": "user",
+                    "title": display_prompt_string,
+                    "content": display_prompt_string,
+                    "uploaded_img": loaded_pil_image
+                })
+                
+                with st.spinner("Processing request using SamyakAI intelligence logic..."):
+                    try:
+                        system_instructions_payload = (
+                            f"SYSTEM DATE: {formatted_current_date}\n"
+                            f"CURRENT ACTIVE TITHI: {get_tithi()}\n"
+                            f"UI DEFAULT LANGUAGE SETTING: {st.session_state.app_lang}\n"
+                            "STRICT OPERATIONAL RULES:\n"
+                            "1. Automatically detect the language and script of the user query or audio recording.\n"
+                            "2. Formulate your response in that exact same language and script.\n"
+                            "3. Keep formatting clean using standard markdown without any LaTeX formatting."
+                        )
+                        
+                        gemini_contents_payload = []
+                        
+                        if isinstance(active_processed_prompt, bytes):
+                            gemini_contents_payload.append(
+                                types.Part.from_bytes(data=active_processed_prompt, mime_type="audio/wav")
+                            )
+                            gemini_contents_payload.append(
+                                "Please transcribe this audio recording accurately and respond directly in the speaker's language."
+                            )
+                        else:
+                            gemini_contents_payload.append(active_processed_prompt or "Please analyze this uploaded image.")
+
+                        gemini_contents_payload.append(system_instructions_payload)
+                        
+                        if loaded_pil_image:
+                            gemini_contents_payload.insert(0, loaded_pil_image)
+
+                        api_response = client.models.generate_content(
+                            model="gemini-3.6-flash",
+                            contents=gemini_contents_payload
+                        )
+                        
+                        model_answer_text = api_response.text
+                        
+                        target_tts_language_code = active_ui_labels["lang_code"]
+                        if any(guar_char in model_answer_text for guar_char in ['અ', 'આ', 'ઇ', 'ઈ', 'ઉ', 'ઊ', 'એ', 'ઐ', 'ઓ', 'ઔ']):
+                            target_tts_language_code = "gu"
+                        elif any(hindi_char in model_answer_text for hindi_char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ']):
+                            target_tts_language_code = "hi"
+                        elif any(marathi_char in model_answer_text for marathi_char in ['ळ']):
+                            target_tts_language_code = "mr"
+
+                        synthesized_audio_data = None
+                        if enable_voice_output:
+                            try:
+                                synthesized_audio_data = text_to_speech_audio(
+                                    model_answer_text, 
+                                    target_tts_language_code, 
+                                    selected_voice_profile
+                                )
+                            except Exception as tts_gen_failure:
+                                pass
+                        
+                        st.session_state.chat_history.append({
+                            "id": message_identifier + 1,
+                            "role": "assistant",
+                            "title": display_prompt_string,
+                            "content": model_answer_text,
+                            "audio_bytes": synthesized_audio_data
+                        })
+                        st.rerun()
+
+                    except Exception as execution_exception:
+                        st.error(f"AI Execution Error Encountered: {str(execution_exception)}")
