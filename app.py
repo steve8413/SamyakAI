@@ -516,5 +516,40 @@ def get_action_cost(mode_flag, has_image, is_audio_clone) -> tuple:
         return 1, "Image Editing / Variation"
     else:
         return 1, "Lyrics Generation / Standard Query"
+        # ==============================================================================
+# SAMYAKAI MULTI-TIER ACTION ENGINE & ACCENT EXTENSION (PASTE AT VERY END)
+# ==============================================================================
+
+def text_to_speech_audio(text: str, lang_code: str, voice_profile: str) -> bytes:
+    clean_text = re.sub(r'<[^>]*>', '', text)
+    profile_config = {
+        "Male 1 (Indian Accent)": {"tld": "co.in", "slow": False},
+        "Female 1 (Indian Accent)": {"tld": "co.in", "slow": True},
+        "Male 2 (US Accent)": {"tld": "com", "slow": False},
+        "Female 2 (US Accent)": {"tld": "ca", "slow": False}
+    }
+    config = profile_config.get(voice_profile, {"tld": "co.in", "slow": False})
+    active_lang = lang_code if lang_code in ['en', 'hi', 'gu', 'mr'] else 'en'
+    if active_lang not in ['en'] and config["tld"] in ["com", "ca"]:
+        config["tld"] = "co.in"
+
+    tts = gTTS(text=clean_text, lang=active_lang, tld=config["tld"], slow=config["slow"])
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    fp.seek(0)
+    return fp.read()
+
+def resolve_action_tier(force_image_mode, uploaded_file, user_prompt, is_audio_input):
+    if force_image_mode:
+        return 5, "🎨 Image Generation (Imagen 3)"
+    elif is_audio_input:
+        return 5, "🎙️ Voice Cloning & Audio Synthesis"
+    elif uploaded_file is not None and not user_prompt:
+        return 0, "👁️ Image Reference & Analysis"
+    elif uploaded_file is not None and user_prompt:
+        return 1, "✏️ Image Editing / Variation"
+    else:
+        return 1, "📜 Lyrics Generation / Standard Query"
+
         
         
