@@ -572,4 +572,4 @@ if active_processed_prompt or uploaded_user_file:
                     st.rerun()
 
                 except Exception as execution_exception:
-st.error("AI Execution Error Encountered: " + str(execution_exception))
+                    st.error("AI Execution Error Encountered: " + str(execution_exception))
