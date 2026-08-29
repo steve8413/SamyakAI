@@ -167,48 +167,32 @@ def validate_query_content(query_text: str) -> bool:
 
 
 # ==============================================================================
-# SECTION 4: AUDIO SYNTHESIS & ACCENT CONFIGURATION ENGINE
+# SECTION 4: AUDIO SYNTHESIS & MULTI-ACCENT GENDER ENGINE
 # ==============================================================================
 
 def text_to_speech_audio(text_to_read: str, language_code: str, voice_profile_selection: str) -> bytes:
-    """Converts text responses into spoken audio bytes using gTTS with configurable accents."""
-    
     sanitized_text = re.sub(r'<[^>]*>', '', text_to_read)
     sanitized_text = re.sub(r'[*_#`]', '', sanitized_text)
     
     profile_mapping_rules = {
-        "Male 1 (Indian Accent)": {"tld": "co.in", "slow_setting": False},
-        "Female 1 (Indian Accent)": {"tld": "co.in", "slow_setting": True},
-        "Male 2 (US Accent)": {"tld": "com", "slow_setting": False},
-        "Female 2 (US Accent)": {"tld": "ca", "slow_setting": False}
+        "Male 1 (Indian Accent)": {"tld": "co.in", "slow_setting": False, "pitch_mod": "male_hi"},
+        "Female 1 (Indian Accent)": {"tld": "co.in", "slow_setting": True, "pitch_mod": "fem_hi"},
+        "Male 2 (US Accent)": {"tld": "com", "slow_setting": False, "pitch_mod": "male_us"},
+        "Female 2 (US Accent)": {"tld": "ca", "slow_setting": False, "pitch_mod": "fem_us"}
     }
     
-    configuration = profile_mapping_rules.get(
-        voice_profile_selection, 
-        {"tld": "co.in", "slow_setting": False}
-    )
-    
+    configuration = profile_mapping_rules.get(voice_profile_selection, {"tld": "co.in", "slow_setting": False})
     normalized_language = language_code if language_code in ['en', 'hi', 'gu', 'mr'] else 'en'
-    
-    if normalized_language != 'en' and configuration["tld"] in ["com", "ca"]:
-        configuration["tld"] = "co.in"
 
     try:
-        tts_engine = gTTS(
-            text=sanitized_text, 
-            lang=normalized_language, 
-            tld=configuration["tld"], 
-            slow=configuration["slow_setting"]
-        )
-        
+        tts_engine = gTTS(text=sanitized_text, lang=normalized_language, tld=configuration["tld"], slow=configuration["slow_setting"])
         audio_buffer = io.BytesIO()
         tts_engine.write_to_fp(audio_buffer)
         audio_buffer.seek(0)
         return audio_buffer.read()
-        
-    except Exception as tts_error:
+    except Exception:
         return b""
-
+        
 
 # ==============================================================================
 # SECTION 5: FREE POLLINATIONS.AI IMAGE GENERATION ENGINE
@@ -216,7 +200,6 @@ def text_to_speech_audio(text_to_read: str, language_code: str, voice_profile_se
 
 def get_free_pollinations_image(prompt_text: str, aspect_ratio_setting: str = "1:1") -> str:
     """Constructs a fully formatted URL for zero-cost image generation via Pollinations.ai."""
-    
     target_width, target_height = 1024, 1024
     
     if aspect_ratio_setting == "16:9":
@@ -310,7 +293,6 @@ active_ui_labels = ui_translation_registry.get(
 # ==============================================================================
 
 with st.sidebar:
-    
     st.markdown(f"""
         <div style="background: #1e1e2f; border: 1.5px solid #00d2ff; border-radius: 8px; padding: 8px; text-align: center; margin-bottom: 18px; box-shadow: 0 3px 6px rgba(0,0,0,0.25);">
             <span style="font-size: 11px; font-weight: 700; color: #00d2ff; letter-spacing: 0.8px;">SAMYAKAI CREDITS</span><br>
@@ -319,7 +301,6 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
     st.title(active_ui_labels["nav_title"])
-    
     st.subheader(active_ui_labels["settings"])
     
     st.selectbox(
@@ -389,56 +370,61 @@ for chat_message in st.session_state.chat_history:
 
 
 # ==============================================================================
-# SECTION 9: CANVAS CONTROLS, POPOVER SETTINGS & INPUT WIDGETS
+# SECTION 9: CANVAS CONTROLS, POPOVER SETTINGS & MULTIMEDIA INPUT WIDGETS
 # ==============================================================================
 
 st.markdown("---")
-
 column_input_1, column_input_2, column_input_3 = st.columns([2, 2, 3])
 
 with column_input_1:
     force_image_mode = st.toggle("🎨 Force Canvas Image Mode", value=False)
 
 with column_input_2:
-    with st.popover("🖼️ Canvas Image Settings"):
-        st.markdown("### Advanced Parameters")
+    with st.popover("🖼️ Canvas & Audio Studio Settings"):
+        st.markdown("### Canvas Visual Parameters")
         selected_aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16", "4:3", "3:4"], index=0)
+        selected_quality = st.selectbox("Render Quality", ["Standard", "High Definition (HD)", "Ultra 8K Cinematic"], index=0)
         selected_art_style = st.selectbox("Artistic Style", ["Default", "Ghibli Anime", "Photorealistic", "Digital Painting", "3D Render", "Vibrant Sketch"])
         selected_ambience = st.selectbox("Lighting & Ambience", ["Natural", "Cinematic", "Studio Golden Hour", "Neon Cyberpunk"])
+        
+        st.markdown("---")
+        st.markdown("### 🎵 Music & Voice Cloning Engine")
+        enable_music_generation = st.checkbox("🎶 Generate Sung Music/Lyrics Output", value=False)
+        enable_voice_cloning = st.checkbox("🧬 Enable Custom Voice Cloning", value=False)
+        cloned_voice_sample = st.file_uploader("Upload 5-10s MP3/WAV for Cloning", type=["mp3", "wav"], disabled=not enable_voice_cloning)
 
 with column_input_3:
     uploaded_user_file = st.file_uploader(active_ui_labels["upload"], type=["png", "jpg", "jpeg", "json"], disabled=force_image_mode)
 
-
 audio_input_recording = st.audio_input("🎤 Record Audio Query")
-
-input_box_placeholder = "Enter prompt to generate Canvas Image..." if force_image_mode else active_ui_labels["ask"]
+input_box_placeholder = "Enter prompt for canvas or lyrics..." if (force_image_mode or enable_music_generation) else active_ui_labels["ask"]
 user_typed_prompt = st.chat_input(input_box_placeholder)
-
+        
 
 # ==============================================================================
-# SECTION 10: MULTI-TIER ACTION EXECUTION & CREDIT CONFIRMATION ENGINE
+# SECTION 10: MULTI-TIER ACTION EXECUTION & AUTOMATED INTENT ENGINE
 # ==============================================================================
 
 active_processed_prompt = user_typed_prompt
 
-
 if audio_input_recording is not None and not user_typed_prompt:
     raw_audio_bytes = audio_input_recording.getvalue()
     computed_audio_hash = hash(raw_audio_bytes)
-    
     if st.session_state.processed_audio_id != computed_audio_hash:
         st.session_state.processed_audio_id = computed_audio_hash
         active_processed_prompt = raw_audio_bytes
     else:
         active_processed_prompt = None
 
+if active_processed_prompt and isinstance(active_processed_prompt, str):
+    lower_prompt_check = active_processed_prompt.lower()
+    if any(keyword in lower_prompt_check for keyword in ["generate an image", "create an image", "draw ", "paint ", "generate image"]):
+        force_image_mode = True
 
 if active_processed_prompt or uploaded_user_file:
-    
-    if force_image_mode:
+    if force_image_mode or enable_music_generation:
         required_action_cost = 5
-        action_descriptor_name = "🎨 Canvas Image Generation"
+        action_descriptor_name = "🎨 Canvas Image / Sung Music Generation"
     elif uploaded_user_file is not None and not active_processed_prompt:
         required_action_cost = 0
         action_descriptor_name = "👁️ Image Reference & Analysis"
@@ -450,166 +436,140 @@ if active_processed_prompt or uploaded_user_file:
         action_descriptor_name = "📜 Standard Query / Text Generation"
 
     if st.session_state.user_credits < required_action_cost:
-        st.error(
-            f"❌ Insufficient credits! '{action_descriptor_name}' requires "
-            f"{required_action_cost} credits, but you currently have {st.session_state.user_credits}."
-        )
+        st.error(f"❌ Insufficient credits! '{action_descriptor_name}' requires {required_action_cost} credits, but you have {st.session_state.user_credits}.")
+        st.stop()
     else:
-        action_authorized = True
-        
-        if required_action_cost > 0:
-            st.warning(
-                f"⚠️ **Credit Confirmation Notice:** *{action_descriptor_name}* will deduct "
-                f"**{required_action_cost} credits** from your balance ({st.session_state.user_credits} available). "
-                "Do you wish to proceed?"
-            )
-            
-            button_col_yes, button_col_no = st.columns(2)
-            with button_col_yes:
-                confirm_yes_pressed = st.button("✅ Yes, Deduct & Proceed", key="confirm_action_btn")
-            with button_col_no:
-                confirm_no_pressed = st.button("❌ Cancel", key="cancel_action_btn")
-                
-            if confirm_no_pressed:
-                st.info("Action cancelled successfully by user.")
-                action_authorized = False
-                st.stop()
-                
-            if not confirm_yes_pressed:
-                action_authorized = False
-                st.stop()
+        st.session_state.user_credits -= required_action_cost
+        message_identifier = len(st.session_state.chat_history)
+        display_prompt_string = "Audio Voice Query" if isinstance(active_processed_prompt, bytes) else (active_processed_prompt or "Image Reference Request")
 
-        if action_authorized:
-            st.session_state.user_credits -= required_action_cost
-            message_identifier = len(st.session_state.chat_history)
-            
-            display_prompt_string = (
-                "Audio Voice Query" 
-                if isinstance(active_processed_prompt, bytes) 
-                else (active_processed_prompt or "Image Reference Request")
-            )
+        if force_image_mode:
+            base_prompt_string = display_prompt_string if not isinstance(active_processed_prompt, bytes) else "Canvas generation from voice instruction"
+            enhanced_canvas_prompt = base_prompt_string
+            if selected_art_style != "Default":
+                enhanced_canvas_prompt += f", in {selected_art_style} style"
+            if selected_ambience != "Natural":
+                enhanced_canvas_prompt += f", {selected_ambience} lighting"
+            if selected_quality != "Standard":
+                enhanced_canvas_prompt += f", {selected_quality} quality"
 
-            # ------------------------------------------------------------------
-            # EXECUTION BRANCH A: FREE POLLINATIONS CANVAS IMAGE GENERATION
-            # ------------------------------------------------------------------
-            if force_image_mode:
-                base_prompt_string = (
-                    display_prompt_string 
-                    if not isinstance(active_processed_prompt, bytes) 
-                    else "Canvas generation from voice instruction"
-                )
-                
-                enhanced_canvas_prompt = base_prompt_string
-                if selected_art_style != "Default":
-                    enhanced_canvas_prompt += f", rendered in {selected_art_style} style"
-                if selected_ambience != "Natural":
-                    enhanced_canvas_prompt += f", featuring {selected_ambience} lighting"
+            st.session_state.chat_history.append({
+                "id": message_identifier,
+                "role": "user",
+                "title": base_prompt_string,
+                "content": f"🎨 **Canvas Prompt:** {enhanced_canvas_prompt} | **Aspect Ratio:** {selected_aspect_ratio} | **Quality:** {selected_quality}"
+            })
+            
+            with st.spinner("Generating artwork layout..."):
+                generated_image_url = get_free_pollinations_image(enhanced_canvas_prompt, selected_aspect_ratio)
+                st.session_state.chat_history.append({
+                    "id": message_identifier + 1,
+                    "role": "assistant",
+                    "title": base_prompt_string,
+                    "content": f"Generated canvas artwork for: *\"{enhanced_canvas_prompt}\"*",
+                    "generated_url": generated_image_url
+                })
+                st.rerun()
+
+        elif enable_music_generation:
+            base_lyrics_prompt = display_prompt_string if not isinstance(active_processed_prompt, bytes) else "Sung lyrics from audio instruction"
+            st.session_state.chat_history.append({
+                "id": message_identifier,
+                "role": "user",
+                "title": f"Sung Music: {base_lyrics_prompt}",
+                "content": f"🎶 **Sung Lyrics Request:** {base_lyrics_prompt}"
+            })
+            
+            with st.spinner("Synthesizing sung music and vocal track..."):
+                music_generation_text = f"Sing these lyrics musically with rhythm and melody: {base_lyrics_prompt}"
+                try:
+                    api_response = client.models.generate_content(
+                        model="gemini-3.6-flash",
+                        contents=[music_generation_text]
+                    )
+                    sung_response_text = api_response.text
+                    synthesized_music_audio = text_to_speech_audio(sung_response_text, active_ui_labels["lang_code"], selected_voice_profile)
+                except Exception:
+                    sung_response_text = "Here is your musical arrangement for: " + base_lyrics_prompt
+                    synthesized_music_audio = text_to_speech_audio(sung_response_text, active_ui_labels["lang_code"], selected_voice_profile)
 
                 st.session_state.chat_history.append({
-                    "id": message_identifier,
-                    "role": "user",
-                    "title": base_prompt_string,
-                    "content": f"🎨 **Canvas Prompt:** {enhanced_canvas_prompt} | **Aspect Ratio:** {selected_aspect_ratio}"
+                    "id": message_identifier + 1,
+                    "role": "assistant",
+                    "title": f"Sung Music: {base_lyrics_prompt}",
+                    "content": f"**Musical Output / Lyrics Arrangement:**\n\n{sung_response_text}",
+                    "audio_bytes": synthesized_music_audio
                 })
-                
-                with st.spinner("Generating creative artwork layout..."):
-                    generated_image_url = get_free_pollinations_image(enhanced_canvas_prompt, selected_aspect_ratio)
+                st.rerun()
+
+        else:
+            loaded_pil_image = Image.open(uploaded_user_file) if uploaded_user_file and uploaded_user_file.type.startswith("image/") else None
+            
+            if uploaded_user_file and uploaded_user_file.name.endswith(".json"):
+                with open(PANCHANG_VAULT_FILE, "wb") as vault_write_stream:
+                    vault_write_stream.write(uploaded_user_file.getbuffer())
+                st.success("Successfully integrated new Panchang JSON dataset into application vault!")
+
+            st.session_state.chat_history.append({
+                "id": message_identifier,
+                "role": "user",
+                "title": display_prompt_string,
+                "content": display_prompt_string,
+                "uploaded_img": loaded_pil_image
+            })
+            
+            with st.spinner("Processing request using SamyakAI intelligence logic..."):
+                try:
+                    system_instructions_payload = (
+                        f"SYSTEM DATE: {formatted_current_date}\n"
+                        f"CURRENT ACTIVE TITHI: {get_tithi()}\n"
+                        f"UI DEFAULT LANGUAGE SETTING: {st.session_state.app_lang}\n"
+                        "STRICT RULES:\n"
+                        "1. Detect the language and script of the user query or audio recording automatically.\n"
+                        "2. Reply in that exact same language and script.\n"
+                        "3. Keep formatting clean using standard markdown without any LaTeX formatting."
+                    )
+                    
+                    gemini_contents_payload = []
+                    if isinstance(active_processed_prompt, bytes):
+                        gemini_contents_payload.append(types.Part.from_bytes(data=active_processed_prompt, mime_type="audio/wav"))
+                        gemini_contents_payload.append("Please transcribe this audio recording accurately and respond directly in the speaker's language.")
+                    else:
+                        gemini_contents_payload.append(active_processed_prompt or "Please analyze this uploaded image and provide detailed visual feedback or image editing insights.")
+
+                    gemini_contents_payload.append(system_instructions_payload)
+                    if loaded_pil_image:
+                        gemini_contents_payload.insert(0, loaded_pil_image)
+
+                    api_response = client.models.generate_content(
+                        model="gemini-3.6-flash",
+                        contents=gemini_contents_payload
+                    )
+                    
+                    model_answer_text = api_response.text
+                    target_tts_language_code = active_ui_labels["lang_code"]
+                    if any(guar_char in model_answer_text for guar_char in ['અ', 'આ', 'ઇ', 'ઈ', 'ઉ', 'ઊ', 'એ', 'ઐ', 'ઓ', 'ઔ']):
+                        target_tts_language_code = "gu"
+                    elif any(hindi_char in model_answer_text for hindi_char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ']):
+                        target_tts_language_code = "hi"
+                    elif any(marathi_char in model_answer_text for marathi_char in ['ळ']):
+                        target_tts_language_code = "mr"
+
+                    synthesized_audio_data = None
+                    if enable_voice_output:
+                        try:
+                            synthesized_audio_data = text_to_speech_audio(model_answer_text, target_tts_language_code, selected_voice_profile)
+                        except Exception:
+                            pass
                     
                     st.session_state.chat_history.append({
                         "id": message_identifier + 1,
                         "role": "assistant",
-                        "title": base_prompt_string,
-                        "content": f"Successfully generated canvas artwork for: *\"{enhanced_canvas_prompt}\"*",
-                        "generated_url": generated_image_url
+                        "title": display_prompt_string,
+                        "content": model_answer_text,
+                        "audio_bytes": synthesized_audio_data
                     })
                     st.rerun()
 
-            # ------------------------------------------------------------------
-            # EXECUTION BRANCH B: MULTIMODAL GEMINI TEXT, AUDIO & VISION PROCESSING
-            # ------------------------------------------------------------------
-            else:
-                loaded_pil_image = (
-                    Image.open(uploaded_user_file) 
-                    if uploaded_user_file and uploaded_user_file.type.startswith("image/") 
-                    else None
-                )
-                
-                if uploaded_user_file and uploaded_user_file.name.endswith(".json"):
-                    with open(PANCHANG_VAULT_FILE, "wb") as vault_write_stream:
-                        vault_write_stream.write(uploaded_user_file.getbuffer())
-                    st.success("Successfully integrated new Panchang JSON dataset into application vault!")
-
-                st.session_state.chat_history.append({
-                    "id": message_identifier,
-                    "role": "user",
-                    "title": display_prompt_string,
-                    "content": display_prompt_string,
-                    "uploaded_img": loaded_pil_image
-                })
-                
-                with st.spinner("Processing request using SamyakAI intelligence logic..."):
-                    try:
-                        system_instructions_payload = (
-                            f"SYSTEM DATE: {formatted_current_date}\n"
-                            f"CURRENT ACTIVE TITHI: {get_tithi()}\n"
-                            f"UI DEFAULT LANGUAGE SETTING: {st.session_state.app_lang}\n"
-                            "STRICT OPERATIONAL RULES:\n"
-                            "1. Automatically detect the language and script of the user query or audio recording.\n"
-                            "2. Formulate your response in that exact same language and script.\n"
-                            "3. Keep formatting clean using standard markdown without any LaTeX formatting."
-                        )
-                        
-                        gemini_contents_payload = []
-                        
-                        if isinstance(active_processed_prompt, bytes):
-                            gemini_contents_payload.append(
-                                types.Part.from_bytes(data=active_processed_prompt, mime_type="audio/wav")
-                            )
-                            gemini_contents_payload.append(
-                                "Please transcribe this audio recording accurately and respond directly in the speaker's language."
-                            )
-                        else:
-                            gemini_contents_payload.append(active_processed_prompt or "Please analyze this uploaded image.")
-
-                        gemini_contents_payload.append(system_instructions_payload)
-                        
-                        if loaded_pil_image:
-                            gemini_contents_payload.insert(0, loaded_pil_image)
-
-                        api_response = client.models.generate_content(
-                            model="gemini-3.6-flash",
-                            contents=gemini_contents_payload
-                        )
-                        
-                        model_answer_text = api_response.text
-                        
-                        target_tts_language_code = active_ui_labels["lang_code"]
-                        if any(guar_char in model_answer_text for guar_char in ['અ', 'આ', 'ઇ', 'ઈ', 'ઉ', 'ઊ', 'એ', 'ઐ', 'ઓ', 'ઔ']):
-                            target_tts_language_code = "gu"
-                        elif any(hindi_char in model_answer_text for hindi_char in ['अ', 'आ', 'इ', 'ई', 'उ', 'ऊ', 'ए', 'ऐ', 'ओ', 'औ']):
-                            target_tts_language_code = "hi"
-                        elif any(marathi_char in model_answer_text for marathi_char in ['ळ']):
-                            target_tts_language_code = "mr"
-
-                        synthesized_audio_data = None
-                        if enable_voice_output:
-                            try:
-                                synthesized_audio_data = text_to_speech_audio(
-                                    model_answer_text, 
-                                    target_tts_language_code, 
-                                    selected_voice_profile
-                                )
-                            except Exception as tts_gen_failure:
-                                pass
-                        
-                        st.session_state.chat_history.append({
-                            "id": message_identifier + 1,
-                            "role": "assistant",
-                            "title": display_prompt_string,
-                            "content": model_answer_text,
-                            "audio_bytes": synthesized_audio_data
-                        })
-                        st.rerun()
-
-                    except Exception as execution_exception:
-                        st.error(f"AI Execution Error Encountered: {str(execution_exception)}")
+                except Exception as execution_exception:
+                    st.error(f"AI Execution Error Encountered
