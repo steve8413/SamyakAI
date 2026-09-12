@@ -20,7 +20,7 @@ from PIL import Image
 from gtts import gTTS
 from google import genai
 from google.genai import types
-
+PANCHANG_VAULT_FILE = "panchang.json"
 
 # ==============================================================================
 # SECTION 1: PAGE CONFIGURATION & 50-CREDIT DATABASE PERSISTENCE SYSTEM
