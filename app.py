@@ -412,14 +412,23 @@ with st.sidebar:
         ]
     )
     
-    st.divider()
+        st.divider()
     
     formatted_current_date = datetime.date.today().strftime("%d-%m-%Y")
     st.subheader(f"📅 {active_ui_labels['pan']}")
     st.metric(label="System Date", value=formatted_current_date)
-    st.metric(label="Calculated Tithi", value=get_tithi())
+    
+    # Safely convert tithi output to a string to prevent Streamlit type errors
+    raw_tithi = get_tithi()
+    if isinstance(raw_tithi, dict):
+        tithi_display = raw_tithi.get("tithi", str(raw_tithi))
+    else:
+        tithi_display = str(raw_tithi) if raw_tithi else "Data Not Available"
+        
+    st.metric(label="Calculated Tithi", value=tithi_display)
     
     st.divider()
+
     
     st.subheader(f"📜 {active_ui_labels['hist']}")
     
