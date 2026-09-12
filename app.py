@@ -68,7 +68,9 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'pending_action' not in st.session_state:
     st.session_state.pending_action = None
-        
+if 'app_lang' not in st.session_state:
+    st.session_state.app_lang = "English"  # Or whatever your default language string is
+            
 
 # ==============================================================================
 # SECTION 2: GOOGLE GENAI CLIENT INITIALIZATION & AUTHENTICATION
