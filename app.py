@@ -411,8 +411,7 @@ with st.sidebar:
             "Female 2 (US Accent)"
         ]
     )
-    
-        st.divider()
+    st.divider()
     
     formatted_current_date = datetime.date.today().strftime("%d-%m-%Y")
     st.subheader(f"📅 {active_ui_labels['pan']}")
