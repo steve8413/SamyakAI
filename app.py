@@ -196,13 +196,7 @@ def text_to_speech_audio(text_to_read: str, language_code: str, voice_profile_se
         return audio_buffer.read()
     except Exception:
         return b""
-        
-
-            elif pending['module'] == 'music':
-                st.session_state.chat_history.append({
-                    "role": "assistant",
-                    "content": f"🎵 **Music & Voice Studio Execution:** Processed audio request for *\"{pending['prompt']}\"*. Voice cloning profile and audio synthesis completed successfully."
-                })
+            
                 
     # ==============================================================================
 # SECTION 5: INDEPENDENT MULTIMEDIA ENGINES & CREDIT CONFIRMATION HANDLER
