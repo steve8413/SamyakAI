@@ -68,6 +68,7 @@ if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'pending_action' not in st.session_state:
     st.session_state.pending_action = None
+        
 
 # ==============================================================================
 # SECTION 2: GOOGLE GENAI CLIENT INITIALIZATION & AUTHENTICATION
@@ -197,7 +198,13 @@ def text_to_speech_audio(text_to_read: str, language_code: str, voice_profile_se
         return b""
         
 
-# ==============================================================================
+            elif pending['module'] == 'music':
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": f"🎵 **Music & Voice Studio Execution:** Processed audio request for *\"{pending['prompt']}\"*. Voice cloning profile and audio synthesis completed successfully."
+                })
+                
+    # ==============================================================================
 # SECTION 5: INDEPENDENT MULTIMEDIA ENGINES & CREDIT CONFIRMATION HANDLER
 # ==============================================================================
 
@@ -301,7 +308,6 @@ if st.session_state.pending_action:
         st.rerun()
         
     st.stop()
-    
 
 
 # ==============================================================================
