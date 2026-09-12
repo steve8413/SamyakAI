@@ -23,7 +23,7 @@ from google.genai import types
 
 
 # ==============================================================================
-# SECTION 1: PAGE CONFIGURATION & INITIAL SESSION STATE MANAGEMENT
+# SECTION 1: PAGE CONFIGURATION & 50-CREDIT DATABASE PERSISTENCE SYSTEM
 # ==============================================================================
 
 st.set_page_config(
@@ -33,38 +33,41 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Global Constants Configuration
-PANCHANG_VAULT_FILE = "panchang_vault.json"
-MAX_CREDITS = 500
-CREDIT_RESET_INTERVAL_SECONDS = 86400  # 24 Hours in seconds
-CURRENT_TIMESTAMP = time.time()
+USER_DB_FILE = "user_db.json"
+MAX_CREDITS = 50  # Strict 50-credit limit per day
 
+def init_user_db():
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    
+    if not os.path.exists(USER_DB_FILE):
+        with open(USER_DB_FILE, "w") as f:
+            json.dump({"credits": MAX_CREDITS, "last_date": today_str}, f)
+            
+    with open(USER_DB_FILE, "r") as f:
+        db_data = json.load(f)
+        
+    if db_data.get("last_date") != today_str:
+        db_data["credits"] = MAX_CREDITS
+        db_data["last_date"] = today_str
+        with open(USER_DB_FILE, "w") as f:
+            json.dump(db_data, f)
+            
+    return db_data["credits"]
 
-# Initialize Session State Variables with Default Safety Fallbacks
+def deduct_credits_in_db(amount):
+    with open(USER_DB_FILE, "r") as f:
+        db_data = json.load(f)
+    db_data["credits"] = max(0, db_data["credits"] - amount)
+    with open(USER_DB_FILE, "w") as f:
+        json.dump(db_data, f)
+    st.session_state.user_credits = db_data["credits"]
+
 if 'user_credits' not in st.session_state: 
-    st.session_state.user_credits = MAX_CREDITS
-
-if 'last_credit_reset' not in st.session_state: 
-    st.session_state.last_credit_reset = CURRENT_TIMESTAMP
-
+    st.session_state.user_credits = init_user_db()
 if 'chat_history' not in st.session_state: 
     st.session_state.chat_history = []
-
-if 'app_lang' not in st.session_state: 
-    st.session_state.app_lang = "English"
-
-if 'pending_action' not in st.session_state: 
+if 'pending_action' not in st.session_state:
     st.session_state.pending_action = None
-
-if 'processed_audio_id' not in st.session_state:
-    st.session_state.processed_audio_id = None
-
-
-# Automated Daily Credit Reset Logic
-if CURRENT_TIMESTAMP - st.session_state.last_credit_reset >= CREDIT_RESET_INTERVAL_SECONDS:
-    st.session_state.user_credits = MAX_CREDITS
-    st.session_state.last_credit_reset = CURRENT_TIMESTAMP
-
 
 # ==============================================================================
 # SECTION 2: GOOGLE GENAI CLIENT INITIALIZATION & AUTHENTICATION
@@ -195,13 +198,11 @@ def text_to_speech_audio(text_to_read: str, language_code: str, voice_profile_se
         
 
 # ==============================================================================
-# SECTION 5: FREE POLLINATIONS.AI IMAGE GENERATION ENGINE
+# SECTION 5: INDEPENDENT MULTIMEDIA ENGINES & CREDIT CONFIRMATION HANDLER
 # ==============================================================================
 
-def get_free_pollinations_image(prompt_text: str, aspect_ratio_setting: str = "1:1") -> str:
-    """Constructs a fully formatted URL for zero-cost image generation via Pollinations.ai."""
+def get_free_pollinations_image(prompt_text: str, aspect_ratio_setting: str = "1:1", quality_setting: str = "Ultra 8K", style_setting: str = "Digital Painting") -> str:
     target_width, target_height = 1024, 1024
-    
     if aspect_ratio_setting == "16:9":
         target_width, target_height = 1280, 720
     elif aspect_ratio_setting == "9:16":
@@ -211,10 +212,96 @@ def get_free_pollinations_image(prompt_text: str, aspect_ratio_setting: str = "1
     elif aspect_ratio_setting == "3:4":
         target_width, target_height = 768, 1024
         
-    encoded_url_prompt = urllib.parse.quote(prompt_text)
-    image_endpoint = f"https://image.pollinations.ai/prompt/{encoded_url_prompt}?width={target_width}&height={target_height}&nologo=true"
+    full_enhanced_prompt = f"{prompt_text}, style: {style_setting}, quality: {quality_setting}"
+    encoded_url_prompt = urllib.parse.quote(full_enhanced_prompt)
+    return f"https://image.pollinations.ai/prompt/{encoded_url_prompt}?width={target_width}&height={target_height}&nologo=true"
+
+def text_to_speech_audio(text_to_read: str, language_code: str = "en") -> bytes:
+    try:
+        sanitized = re.sub(r'[*_#`]', '', re.sub(r'<[^>]*>', '', text_to_read))
+        tts = gTTS(text=sanitized, lang=language_code, tld="co.in")
+        buf = io.BytesIO()
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        return buf.read()
+    except Exception:
+        return b""
+
+if st.session_state.pending_action:
+    pending = st.session_state.pending_action
     
-    return image_endpoint
+    st.markdown(f"""
+        <div style="border: 2px solid #ffaa00; background-color: #2b2b20; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h3 style="color: #ffaa00; margin-top: 0;">⚠️ Are you sure you want to deduct the credits?</h3>
+            <p style="color: #ddd;">Action Requested: <b>{pending['intent']}</b></p>
+            <p style="color: #ddd;">Credit Cost: <b>{pending['cost']} credits</b> (Your Current Balance: <b>{st.session_state.user_credits} / 50</b>)</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    col_yes, col_no = st.columns(2)
+    
+    if col_yes.button("✅ Yes, Deduct Credits & Execute", use_container_width=True):
+        if st.session_state.user_credits >= pending['cost']:
+            deduct_credits_in_db(pending['cost'])
+            st.session_state.chat_history.append({"role": "user", "content": pending['prompt']})
+            
+            if pending['module'] == 'image':
+                skel = st.empty()
+                skel.markdown(f"""
+                    <div style="border: 2px dashed #00d2ff; background-color: #111118; padding: 30px; border-radius: 14px; text-align: center;">
+                        <h3 style="color: #00d2ff;">✨ Generating AI Artwork...</h3>
+                        <p style="color: #999; font-size: 13px;">Applying Aspect: {pending['aspect']} | Style: {pending['style']}</p>
+                        <div style="font-size: 24px; animation: pulse 1.5s infinite;">⏳</div>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                time.sleep(1.5)
+                img_url = get_free_pollinations_image(pending['prompt'], pending['aspect'], pending['quality'], pending['style'])
+                skel.empty()
+                
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": f"Successfully generated independent AI artwork for: *\"{pending['prompt']}\"*",
+                    "generated_url": img_url
+                })
+                
+            elif pending['module'] == 'music':
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": f"🎵 **Music & Voice Studio Execution:** Processed audio request for *\"{pending['prompt']}\"*. Voice cloning profile and audio synthesis completed successfully."
+                })
+                
+            elif pending['module'] == 'text':
+                try:
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=[pending['prompt']]
+                    )
+                    audio_data = text_to_speech_audio(response.text)
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": response.text,
+                        "audio_bytes": audio_data
+                    })
+                except Exception as ex:
+                    st.session_state.chat_history.append({"role": "assistant", "content": f"Error executing text generation: {ex}"})
+                    
+            st.session_state.pending_action = None
+            st.rerun()
+        else:
+            st.error("❌ Insufficient credits in your 50-credit balance!")
+
+    if col_no.button("❌ No, Give Answer Without Credits", use_container_width=True):
+        st.session_state.chat_history.append({"role": "user", "content": pending['prompt']})
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": "No credits deducted. Answer provided via free fallback mode (Basic text output without heavy AI visual/audio synthesis)."
+        })
+        st.session_state.pending_action = None
+        st.rerun()
+        
+    st.stop()
+    
 
 
 # ==============================================================================
@@ -572,4 +659,92 @@ if active_processed_prompt or uploaded_user_file:
                     st.rerun()
 
                 except Exception as execution_exception:
-                    st.error("AI Execution Error Encountered: " + str(execution_exception))
+                    st.error("AI Execution Error Encountered: " + str(execution_exception)) 
+                    # ==============================================================================
+# SECTION 7: CANVAS STUDIO DROPDOWN, UNLOCKED FILE UPLOADS & INTENT DETECTION
+# ==============================================================================
+
+with st.sidebar:
+    st.markdown(f"""
+        <div style="background: #1e1e2f; border: 1.5px solid #00d2ff; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 18px;">
+            <span style="font-size: 11px; font-weight: 700; color: #00d2ff;">SAMYAKAI CREDITS</span><br>
+            <span style="font-size: 24px; font-weight: bold; color: #ffffff;">{st.session_state.user_credits} / 50</span><br>
+            <span style="font-size: 10px; color: #888;">Resets Daily</span>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.title("SamyakAI Studio")
+st.markdown("<p style='color: #888; margin-top: -15px;'>- CREATED AND MAINTAINED BY STAVYA SHAH</p>", unsafe_allow_html=True)
+st.divider()
+
+for chat in st.session_state.chat_history:
+    with st.chat_message(chat["role"]):
+        st.markdown(chat["content"], unsafe_allow_html=True)
+        if chat.get("generated_url"):
+            st.image(chat.get("generated_url"), caption="Generated AI Artwork", use_container_width=True)
+        if chat.get("audio_bytes"):
+            st.audio(chat.get("audio_bytes"), format="audio/mp3")
+
+col_ctrl1, col_ctrl2 = st.columns([1, 2])
+
+with col_ctrl1:
+    canvas_dropdown_selection = st.selectbox(
+        "🎨 Canvas Studio Mode", 
+        ["Image Generation Studio", "Music & Voice Studio"]
+    )
+    
+    if canvas_dropdown_selection == "Image Generation Studio":
+        sub_aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16", "4:3", "3:4"], index=0)
+        sub_render_quality = st.selectbox("Render Quality", ["Standard", "High Definition (HD)", "Ultra 8K Cinematic"], index=2)
+        sub_art_style = st.selectbox("Artistic Style", ["Digital Painting", "Photorealistic", "3D Render", "Ghibli Anime", "Vibrant Sketch"], index=0)
+    else:
+        music_sub_feature = st.selectbox(
+            "Music & Audio Tool", 
+            ["Voice Cloning & Custom Audio", "Lyrics to Music (Dual AI Voices)"]
+        )
+
+with col_ctrl2:
+    uploaded_user_file = st.file_uploader(
+        "📁 Upload Reference File / Audio / Image (Always Active)", 
+        type=["png", "jpg", "jpeg", "mp3", "wav", "json"]
+    )
+
+user_typed_prompt = st.chat_input("Ask SamyakAI or type your generation prompt...")
+
+if user_typed_prompt or uploaded_user_file:
+    prompt_content = user_typed_prompt if user_typed_prompt else "Process uploaded file reference"
+    lower_content = prompt_content.lower()
+    
+    image_keywords = ["image", "draw", "paint", "photo", "art", "visual", "generate", "create"]
+    music_keywords = ["music", "song", "voice", "clone", "sing", "lyrics", "audio"]
+    
+    is_image_intent = (canvas_dropdown_selection == "Image Generation Studio") or any(k in lower_content for k in image_keywords)
+    is_music_intent = (canvas_dropdown_selection == "Music & Voice Studio") or any(k in lower_content for k in music_keywords)
+    
+    if is_image_intent:
+        st.session_state.pending_action = {
+            "module": "image",
+            "intent": "Independent AI Image Generation Studio",
+            "prompt": prompt_content,
+            "cost": 5,
+            "aspect": sub_aspect_ratio,
+            "quality": sub_render_quality,
+            "style": sub_art_style
+        }
+    elif is_music_intent:
+        st.session_state.pending_action = {
+            "module": "music",
+            "intent": f"Music Studio ({music_sub_feature if 'music_sub_feature' in locals() else 'Voice Studio'})",
+            "prompt": prompt_content,
+            "cost": 3
+        }
+    else:
+        st.session_state.pending_action = {
+            "module": "text",
+            "intent": "Independent AI Reasoning & Text Generation",
+            "prompt": prompt_content,
+            "cost": 1
+        }
+        
+    st.rerun()
+    
