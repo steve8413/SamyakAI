@@ -459,8 +459,8 @@ for chat_message in st.session_state.chat_history:
             st.image(chat_message["uploaded_img"], caption="Vault Image Reference", width=300)
             
         if chat_message.get("generated_url"):
-            st.image(chat_message["generated_url"], caption="Generated Free Canvas Output", use_column_width=True)
-            st.markdown(f"[📥 Download Image Directly]({chat_message['generated_url']})", unsafe_allow_html=True)
+st.image(chat_message["generated_url"], caption="Generated Free Canvas Output", use_column_width=True)            
+st.markdown(f"[📥 Download Image Directly]({chat_message['generated_url']})", unsafe_allow_html=True)
             
         if chat_message.get("audio_bytes") and chat_message["role"] == "assistant":
             st.audio(chat_message["audio_bytes"], format="audio/mp3")
