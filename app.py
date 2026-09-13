@@ -459,7 +459,13 @@ for chat_message in st.session_state.chat_history:
             st.image(chat_message["uploaded_img"], caption="Vault Image Reference", width=300)
             
         if chat_message.get("generated_url"):
-st.image(chat_message["generated_url"], caption="Generated Free Canvas Output", use_column_width=True)            
+# Safe check for line 464 to handle both text and generated images
+if isinstance(chat_message, dict) and chat_message.get("generated_url"):
+    st.image(chat_message["generated_url"], caption="Generated Canvas Artwork")
+else:
+    # Safely print normal chat text without triggering image errors
+    msg_text = chat_message.get("text", chat_message) if isinstance(chat_message, dict) else chat_message
+    st.write(msg_text)
 st.markdown(f"[📥 Download Image Directly]({chat_message['generated_url']})", unsafe_allow_html=True)
             
         if chat_message.get("audio_bytes") and chat_message["role"] == "assistant":
