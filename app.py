@@ -479,7 +479,7 @@ with column_input_1:
 with column_input_2:
     with st.popover("🖼️ Canvas & Audio Studio Settings"):
         st.markdown("### Canvas Visual Parameters")
-        selected_aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16", "4:3", "3:4"], index=0, key"aspect_ratio_studio_2)
+        selected_aspect_ratio = st.selectbox("Aspect Ratio", ["1:1", "16:9", "9:16", "4:3", "3:4"], index=0)
         selected_quality = st.selectbox("Render Quality", ["Standard", "High Definition (HD)", "Ultra 8K Cinematic"], index=0)
         selected_art_style = st.selectbox("Artistic Style", ["Default", "Ghibli Anime", "Photorealistic", "Digital Painting", "3D Render", "Vibrant Sketch"])
         selected_ambience = st.selectbox("Lighting & Ambience", ["Natural", "Cinematic", "Studio Golden Hour", "Neon Cyberpunk"])
