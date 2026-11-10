@@ -438,7 +438,6 @@ with st.sidebar:
     else:
         st.text("No query history recorded yet.")
 
-
 # ==============================================================================
 # SECTION 8: APPLICATION HEADER & CHAT HISTORY RENDERER
 # ==============================================================================
@@ -454,20 +453,14 @@ st.divider()
 for chat_message in st.session_state.chat_history:
     with st.chat_message(chat_message["role"]):
         st.markdown(chat_message["content"], unsafe_allow_html=True)
-        
+
         if chat_message.get("uploaded_img"):
             st.image(chat_message["uploaded_img"], caption="Vault Image Reference", width=300)
-            
+
         if chat_message.get("generated_url"):
-# Safe check for line 464 to handle both text and generated images
-if isinstance(chat_message, dict) and chat_message.get("generated_url"):
-    st.image(chat_message["generated_url"], caption="Generated Canvas Artwork")
-else:
-    # Safely print normal chat text without triggering image errors
-    msg_text = chat_message.get("text", chat_message) if isinstance(chat_message, dict) else chat_message
-    st.write(msg_text)
-st.markdown(f"[📥 Download Image Directly]({chat_message['generated_url']})", unsafe_allow_html=True)
-            
+            st.image(chat_message["generated_url"], caption="Generated Canvas Artwork")
+            st.markdown(f"[📥 Download Image Directly]({chat_message['generated_url']})", unsafe_allow_html=True)
+
         if chat_message.get("audio_bytes") and chat_message["role"] == "assistant":
             st.audio(chat_message["audio_bytes"], format="audio/mp3")
 
