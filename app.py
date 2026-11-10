@@ -27,7 +27,7 @@ PANCHANG_VAULT_FILE = "panchang.json"
 # ==============================================================================
 
 st.set_page_config(
-    page_title="SamyakAI Studio",
+    page_title="Samyak-AI",
     page_icon="logo.png",
     layout="wide",
     initial_sidebar_state="expanded"
